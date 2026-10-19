@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Pre$u</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0e" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pre$u">
+<link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="iconos/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#f2f2f7;--card:#ffffff;--campo:#f2f2f7;--txt:#111114;--sub:#8a8a8e;--sep:rgba(60,60,67,.12);
+  --acento:#0e9f6e;--acento-txt:#ffffff;--acento-suave:rgba(14,159,110,.12);--rojo:#ff3b30;--verde:#0e9f6e;
+  --sombra:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0b0b0e;--card:#1c1c1f;--campo:#2a2a2e;--txt:#f5f5f7;--sub:#8e8e93;--sep:rgba(255,255,255,.07);
+    --acento:#34d399;--acento-txt:#06281c;--acento-suave:rgba(52,211,153,.15);--rojo:#ff6961;--verde:#4cd97b;--sombra:none}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{margin:0 auto;max-width:460px;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,system-ui,sans-serif;
+  -webkit-text-size-adjust:100%;line-height:1.35}
+button,input{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;user-select:none;-webkit-user-select:none}
+.oculto{display:none!important}
+
+/* ===== Cuestionario ===== */
+.paso{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+  padding:calc(14px + env(safe-area-inset-top)) 22px calc(18px + env(safe-area-inset-bottom))}
+.arriba{display:flex;align-items:center;gap:14px;height:40px;flex:none}
+.atras{width:36px;height:36px;border-radius:50%;border:0;background:var(--card);box-shadow:var(--sombra);
+  display:flex;align-items:center;justify-content:center;flex:none}
+.atras svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.progreso{flex:1;height:5px;border-radius:3px;background:var(--sep);overflow:hidden}
+.progreso i{display:block;height:100%;background:var(--acento);border-radius:3px;transition:width .35s ease}
+.cuerpo{flex:1;padding-top:30px;animation:entra .28s ease}
+@keyframes entra{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.cuerpo.vuelve{animation-name:vuelve}
+@keyframes vuelve{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.emoji{font-size:40px;line-height:1;margin-bottom:14px}
+h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px;line-height:1.15}
+.ayuda{color:var(--sub);font-size:15.5px;margin:0 0 26px}
+.abajo{flex:none;padding-top:16px}
+.boton{width:100%;padding:16px;font-size:17px;font-weight:650;border:0;border-radius:15px;background:var(--acento);color:var(--acento-txt)}
+.boton:disabled{opacity:.35}
+.boton.sec{background:none;color:var(--sub);font-weight:600;padding:12px;margin-top:4px}
+
+input.texto{display:block;width:100%;font-size:18px;padding:15px 16px;border:0;border-radius:14px;background:var(--card);
+  box-shadow:var(--sombra);outline:none;-webkit-appearance:none}
+input.texto:focus{box-shadow:0 0 0 2px var(--acento)}
+input.importe{display:block;width:100%;font-size:52px;font-weight:800;letter-spacing:-.03em;border:0;background:none;
+  text-align:center;outline:none;padding:6px 0 4px;margin:0}
+input.importe::placeholder,input.texto::placeholder{color:var(--sub);opacity:.55}
+input[type=date].texto{min-height:52px}
+
+/* Tarjetas para elegir */
+.opciones{display:flex;flex-direction:column;gap:11px}
+.opcion{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:0;border-radius:18px;padding:16px;
+  background:var(--card);box-shadow:var(--sombra);transition:box-shadow .15s, background .15s}
+.opcion .ico{width:44px;height:44px;border-radius:13px;background:var(--campo);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.opcion b{display:block;font-size:16.5px;font-weight:650}
+.opcion span.sub{display:block;color:var(--sub);font-size:13.5px;margin-top:2px}
+.opcion .marca{margin-left:auto;width:24px;height:24px;border-radius:50%;border:2px solid var(--sep);flex:none;display:flex;align-items:center;justify-content:center}
+.opcion.on{box-shadow:0 0 0 2px var(--acento)}
+.opcion.on .ico{background:var(--acento-suave)}
+.opcion.on .marca{background:var(--acento);border-color:var(--acento)}
+.opcion.on .marca::after{content:"";width:10px;height:6px;border:2.5px solid var(--acento-txt);border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+
+/* Segmentos y chips */
+.etq{font-size:13.5px;color:var(--sub);margin:24px 2px 9px;font-weight:500}
+.seg{display:flex;background:var(--campo);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:none;padding:10px 4px;border-radius:10px;font-size:15px;color:var(--sub);font-weight:500}
+.seg button.on{background:var(--card);color:var(--txt);font-weight:650;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.dias{display:flex;gap:6px}
+.dias button{flex:1;border:0;background:var(--campo);border-radius:11px;padding:11px 0;font-size:15px;font-weight:600;color:var(--sub)}
+.dias button.on{background:var(--acento);color:var(--acento-txt)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:0;background:var(--card);box-shadow:var(--sombra);border-radius:20px;padding:10px 14px;font-size:15px}
+.chip.on{background:var(--acento);color:var(--acento-txt);font-weight:600}
+.paso-dia{display:flex;align-items:center;justify-content:space-between;background:var(--campo);border-radius:12px;padding:6px 6px 6px 16px;font-size:16px}
+.paso-dia .ctrl{display:flex;align-items:center;gap:6px}
+.paso-dia button{width:40px;height:40px;border:0;border-radius:10px;background:var(--card);font-size:20px;font-weight:600}
+.paso-dia b{min-width:34px;text-align:center;font-size:18px}
+.nota{color:var(--sub);font-size:13px;margin:10px 2px 0;line-height:1.4}
+.tarjeta{background:var(--card);border-radius:20px;padding:18px;box-shadow:var(--sombra)}
+
+/* Lista de gastos fijos */
+.fijo{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--sep)}
+.fijo:first-child{border-top:0;padding-top:2px}
+.fijo:last-child{padding-bottom:2px}
+.fijo .ico{font-size:20px;width:30px;text-align:center;flex:none}
+.fijo input.nom{flex:1;min-width:0;border:0;background:none;font-size:16px;outline:none;padding:6px 0}
+.fijo input.cant{width:84px;border:0;border-radius:10px;background:var(--campo);font-size:16px;font-weight:650;text-align:right;padding:9px 10px;outline:none}
+.fijo .frec{border:0;border-radius:10px;background:var(--campo);font-size:13px;color:var(--sub);padding:10px 8px;min-width:58px}
+.fijo{flex-wrap:wrap}
+.fijo .extra{flex-basis:100%;display:flex;gap:6px;padding-left:40px;margin-top:-2px}
+.fijo .frec{padding:7px 10px}
+.fijo .frec.cta{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
+.fijo .quitar{border:0;background:none;color:var(--sub);font-size:16px;padding:6px 2px;opacity:.7}
+
+/* Bienvenida y plan */
+.logo{width:76px;height:76px;filter:drop-shadow(0 6px 16px rgba(14,159,110,.35));margin-bottom:26px}
+.bienvenida .cuerpo{display:flex;flex-direction:column;justify-content:center;padding-top:0}
+.bienvenida h1{font-size:34px}
+.grande{font-size:56px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;line-height:1.05}
+.pos{color:var(--verde)}.neg{color:var(--rojo)}
+.linea{display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--sep);font-size:15.5px}
+.linea:first-child{border-top:0;padding-top:0}
+.linea:last-child{padding-bottom:0}
+.linea span{color:var(--sub)}
+.linea.total{font-weight:700}
+.linea.total span{color:var(--txt)}
+
+#aviso{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));z-index:30;transform:translateX(-50%) translateY(10px);
+  background:rgba(28,28,30,.95);color:#fff;padding:12px 20px;border-radius:24px;font-size:15px;opacity:0;transition:all .25s;pointer-events:none;
+  white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#aviso.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== App (parte 3) ===== */
+:root{--barra:rgba(255,255,255,.82);--apagado:rgba(120,120,128,.2)}
+@media (prefers-color-scheme:dark){:root{--barra:rgba(38,38,42,.82);--apagado:rgba(120,120,128,.36)}}
+.app{padding:calc(12px + env(safe-area-inset-top)) 16px calc(116px + env(safe-area-inset-bottom));animation:entra .25s ease}
+.app.quieta{animation:none}
+.cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 18px;min-height:44px}
+.cab-izq{display:flex;align-items:center;gap:12px;min-width:0}
+.cab .logo{width:42px;height:42px;margin:0;filter:none;flex:none}
+.cab-hola{font-size:22px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab-sub{font-size:13.5px;color:var(--sub);margin-top:1px}
+.cab h1{margin:0;font-size:30px}
+.cab .atras svg.rueda{width:21px;height:21px;stroke-width:1.9}
+.app .tarjeta{margin-bottom:14px}
+.tit-tarjeta{font-size:17px;font-weight:700;margin:0 0 12px}
+
+.hero{text-align:center;padding:22px 18px 14px}
+.hero-etq{color:var(--sub);font-size:15px}
+.hero .grande{font-size:52px;margin:4px 0 2px}
+.hero-fechas{color:var(--sub);font-size:13.5px}
+.barrita{height:6px;border-radius:3px;background:var(--campo);overflow:hidden;margin:16px 0 0}
+.barrita i{display:block;height:100%;border-radius:3px;background:var(--acento);transition:width .35s ease}
+.barrita i.neg{background:var(--rojo)}
+.desglose{margin-top:12px;text-align:left}
+.desglose .linea{font-size:14.5px;padding:9px 0}
+.desglose .linea:first-child{padding-top:4px}
+.desglose .nota{text-align:left;margin-top:8px}
+
+.pregunta{background:var(--acento-suave);box-shadow:none}
+.preg-tit{font-size:16.5px;font-weight:650}
+.preg-sub{color:var(--sub);font-size:14px;margin:3px 0 12px}
+.preg-bot{display:flex;gap:8px}
+.mini-b{flex:1;border:0;border-radius:12px;padding:11px 4px;font-size:14.5px;white-space:nowrap;font-weight:600;background:var(--card);color:var(--txt)}
+.preg-bot .mini-b:nth-child(2){flex:1.5}
+.mini-b.si{background:var(--acento);color:var(--acento-txt)}
+.preg-otra{display:flex;gap:8px;margin-top:10px}
+.preg-otra input.texto{flex:1;min-width:0;font-size:16px;padding:11px 14px;box-shadow:none}
+.preg-otra input.texto:focus{box-shadow:0 0 0 2px var(--acento)}
+.preg-otra .mini-b{flex:none;padding:11px 16px}
+.pregunta .nota{margin-top:10px}
+
+.app .tarjeta .chip{background:var(--campo);box-shadow:none}
+.app .tarjeta .chip.on{background:var(--acento);color:var(--acento-txt)}
+.app .etq{margin:16px 2px 8px}
+.app input.texto.campo{background:var(--campo);box-shadow:none;font-size:16px;padding:13px 14px}
+.app input.texto.campo:focus{box-shadow:0 0 0 2px var(--acento)}
+.atajos{display:flex;gap:8px;overflow-x:auto;margin:12px -18px 0;padding:2px 18px;scrollbar-width:none}
+.atajos::-webkit-scrollbar{display:none}
+.atajos .chip{flex:none;font-size:14px;padding:8px 12px;white-space:nowrap}
+.apuntar input.importe{font-size:46px;margin:10px 0 8px}
+.fila{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--campo);border-radius:12px;
+  padding:6px 6px 6px 14px;margin-top:14px;font-size:15.5px;min-height:48px}
+.fila small{display:block;color:var(--sub);font-size:12.5px;margin-top:1px}
+.fila .enlace{border:0;background:none;color:var(--acento);font-weight:600;padding:8px 10px;font-size:15px}
+.app input[type=date].texto.campo{margin-top:8px}
+.interruptor{width:51px;height:31px;border-radius:16px;background:var(--apagado);position:relative;border:0;flex:none;transition:background .2s;margin-right:2px}
+.interruptor::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.interruptor.on{background:var(--acento)}
+.interruptor.on::after{transform:translateX(20px)}
+.apuntar .boton{margin-top:16px}
+
+.pronto{text-align:center;padding:34px 20px;color:var(--sub);font-size:15px}
+.pronto .emoji{margin-bottom:10px}
+.boton.peligro{background:var(--card);color:var(--rojo);box-shadow:var(--sombra)}
+
+.barra{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:20;
+  width:calc(100% - 32px);max-width:428px;display:flex;padding:6px;border-radius:24px;background:var(--barra);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:0 6px 24px rgba(0,0,0,.12),0 0 0 .5px var(--sep)}
+.barra button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px 6px;
+  border-radius:18px;color:var(--sub);font-size:11.5px;font-weight:600}
+.barra svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.barra button.on{color:var(--acento);background:var(--acento-suave)}
+
+/* ===== Movimientos ===== */
+.nav-per{display:flex;align-items:center;gap:10px;padding:12px}
+.nav-per>button{width:40px;height:40px;border-radius:50%;border:0;background:var(--campo);display:flex;align-items:center;justify-content:center;flex:none;color:var(--txt)}
+.nav-per>button.apagado{opacity:.25}
+.nav-per svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.nav-per .centro{flex:1;text-align:center;min-width:0}
+.nav-per .centro b{display:block;font-size:17px;font-weight:700}
+.nav-per .centro span{display:block;color:var(--sub);font-size:13.5px;margin-top:1px}
+.nav-per .centro .queda{margin-top:4px;font-size:14.5px;font-weight:600;color:var(--txt)}
+.nav-per .centro .queda span{display:inline;font-size:inherit;margin:0;font-weight:750}
+.nav-per .queda span.pos{color:var(--verde)}.nav-per .queda span.neg{color:var(--rojo)}
+.sec-tit{font-size:13px;color:var(--sub);font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin:22px 6px 8px}
+.lista{padding:4px 16px}
+.mov{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--sep);cursor:pointer}
+.mov:first-child{border-top:0}
+.mov .ico{width:40px;height:40px;border-radius:12px;background:var(--campo);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.mov .txt{flex:1;min-width:0}
+.mov .txt b{display:block;font-size:15.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mov .txt span{display:block;color:var(--sub);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mov .cant{font-weight:650;font-size:15.5px;white-space:nowrap;text-align:right}
+.mov .cant.mas{color:var(--verde)}
+.mov .cant small{display:block;color:var(--sub);font-size:12px;font-weight:500;margin-top:2px}
+.mov .cant.tachado{text-decoration:line-through;color:var(--sub);font-weight:500}
+.mov .borrar{border:0;background:none;color:var(--sub);font-size:15px;padding:10px 0 10px 4px;opacity:.7;flex:none}
+.estado{display:inline-block;font-size:11.5px;font-weight:650;padding:2px 7px;border-radius:7px;background:var(--campo);color:var(--sub);margin-top:3px}
+.estado.espera{background:var(--acento-suave);color:var(--acento)}
+.vacio{text-align:center;color:var(--sub);padding:22px 10px;font-size:15px}
+
+/* Hoja que sube desde abajo (para cambiar algo) */
+.velo{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:40;opacity:0;transition:opacity .22s}
+.velo.ver{opacity:1}
+.hoja{position:fixed;left:50%;bottom:0;transform:translate(-50%,105%);width:100%;max-width:460px;z-index:41;background:var(--bg);
+  border-radius:22px 22px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:92vh;max-height:92dvh;overflow-y:auto;
+  transition:transform .3s cubic-bezier(.2,.8,.2,1);box-shadow:0 -6px 30px rgba(0,0,0,.15)}
+.hoja.ver{transform:translate(-50%,0)}
+.hoja .asa{width:38px;height:5px;border-radius:3px;background:var(--apagado);margin:0 auto 16px}
+.hoja h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:0 0 4px}
+.hoja .ayuda{margin:0 0 16px;font-size:14.5px}
+.hoja .tarjeta .chip{background:var(--campo);box-shadow:none}
+.hoja .tarjeta .chip.on{background:var(--acento);color:var(--acento-txt)}
+.hoja .etq{margin:16px 2px 8px}
+.hoja input.texto.campo{background:var(--campo);box-shadow:none;font-size:16px;padding:13px 14px}
+.hoja input.texto.campo:focus{box-shadow:0 0 0 2px var(--acento)}
+.hoja input.importe{font-size:46px}
+.chips.centrados{justify-content:center;margin-top:6px}
+.botones-hoja{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.boton.suave{background:var(--card);color:var(--txt);box-shadow:var(--sombra)}
+.boton.rojo-txt{background:none;color:var(--rojo);padding:12px}
+
+/* ===== Resumen ===== */
+.res-fila{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--sep)}
+.res-fila:first-child{border-top:0;padding-top:2px}
+.res-fila:last-child{padding-bottom:2px}
+.res-fila .ico{width:40px;height:40px;border-radius:12px;background:var(--campo);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.res-fila .txt{flex:1;min-width:0}
+.res-fila .txt b{display:block;font-size:15.5px;font-weight:600}
+.res-fila .txt span{display:block;color:var(--sub);font-size:13px;margin-top:2px}
+.res-fila .cant{font-weight:700;font-size:16px;white-space:nowrap}
+.res-total{display:flex;justify-content:space-between;font-weight:700;padding-top:12px;margin-top:2px;border-top:1px solid var(--sep);font-size:15.5px}
+.cat-fila{padding:9px 0}
+.cat-fila .arriba-cat{display:flex;align-items:center;gap:10px;font-size:15.5px}
+.cat-fila .arriba-cat span{flex:1;min-width:0}
+.cat-fila .arriba-cat small{color:var(--sub);font-size:13px;font-weight:500;margin-right:4px}
+.cat-fila .barrita{margin:7px 0 0 32px;height:7px}
+.cab-tarjeta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.cab-tarjeta .tit-tarjeta{margin:0}
+.cab-tarjeta .enlace{border:0;background:none;color:var(--acento);font-weight:600;font-size:15px;padding:4px 0}
+.periodo-res .grande{font-size:40px;margin:2px 0 0}
+.periodo-res .sub-res{color:var(--sub);font-size:14px;margin-top:2px}
+.periodo-res .barrita{margin-top:14px}
+.periodo-res .pie{display:flex;justify-content:space-between;color:var(--sub);font-size:13px;margin-top:8px}
+.boton.contorno{background:var(--acento-suave);color:var(--acento);margin-top:4px}
+.saldo-fila{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--sep)}
+.saldo-fila:first-child{border-top:0;padding-top:2px}
+.saldo-fila span{flex:1;font-size:16px}
+.saldo-fila input{width:120px;border:0;border-radius:10px;background:var(--campo);font-size:16px;font-weight:650;text-align:right;padding:10px 12px;outline:none}
+.saldo-fila input:focus{box-shadow:0 0 0 2px var(--acento)}
+
+/* ===== Ajustes ===== */
+.ajuste-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:16px}
+.ajuste-fila input{flex:1;min-width:0;border:0;background:none;text-align:right;font-size:16px;outline:none;color:var(--sub);padding:6px 0}
+.ajuste-fila input:focus{color:var(--txt)}
+.app .tarjeta .etq:first-child{margin-top:0}
+.mov .ir{color:var(--sub);font-size:22px;line-height:1;opacity:.6;flex:none}
+.anadir{display:block;width:100%;border:0;background:none;color:var(--acento);font-weight:600;font-size:15.5px;padding:13px 0 11px;text-align:left;border-top:1px solid var(--sep)}
+.lista .anadir:first-child{border-top:0}
+.chip .x{margin-left:6px;color:var(--sub);font-size:13px}
+.fila-anadir{display:flex;gap:8px;margin-top:12px}
+.fila-anadir input.texto.campo{flex:1;min-width:0;padding:11px 14px}
+.fila-anadir .mini-b{flex:none;padding:11px 16px;background:var(--acento-suave);color:var(--acento)}
+.hoja .dias button{background:var(--campo)}
+.hoja .dias button.on{background:var(--acento);color:var(--acento-txt)}
+.hoja .paso-dia button{background:var(--card)}
+</style>
+</head>
+<body>
+
+<div id="raiz"></div>
+<div id="aviso"></div>
+
+<script>
+// =====================================================================
+//  Pre$u · Parte 2: cuestionario de inicio
+//  Todo se guarda solo en este móvil (localStorage). No hay servidor.
+// =====================================================================
+
+const $ = id => document.getElementById(id);
+const leer = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const num = s => { s = String(s ?? '').trim().replace(/[€\s]/g, ''); if (!s) return NaN; return parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s); };
+const eur = (n, dec) => Number(n || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR',
+  minimumFractionDigits: dec === 0 ? 0 : 2, maximumFractionDigits: dec === 0 ? 0 : 2 });
+const r2 = n => Math.round(n * 100) / 100;
+const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function hoyIso() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+const fmtImporte = n => (n || n === 0) && !isNaN(n) && n > 0 ? String(r2(n)).replace('.', ',') : '';
+
+let tAviso;
+function aviso(t) {
+  const a = $('aviso'); a.textContent = t; a.classList.add('ver');
+  clearTimeout(tAviso); tAviso = setTimeout(() => a.classList.remove('ver'), 2200);
+}
+
+const LOGO = `<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="#3EE0A5"/><stop offset="1" stop-color="#0E9F6E"/></linearGradient></defs>
+  <rect width="64" height="64" rx="15" fill="url(#lg)"/><circle cx="32" cy="32" r="19" fill="#fff" opacity=".18"/>
+  <path d="M38.5 24.2c-1.5-1.9-3.9-3-6.6-3-4 0-6.9 2.1-6.9 5.3 0 7.4 14.2 3.6 14.2 10.9 0 3.3-3.1 5.5-7.3 5.5-3 0-5.6-1.2-7.2-3.3M32 16.5v4.7M32 42.9v4.6"
+  fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const FLECHA = '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+
+// ---------- Tipos de dinero que entra ----------
+const FUENTES = {
+  paga:   { emoji: '👨‍👩‍👧', titulo: 'Paga de mis padres',        sub: 'Lo que te dan para ti',                   frec: 'semana', dia: 1 },
+  semana: { emoji: '🛒',     titulo: 'Dinero para pasar la semana', sub: 'Para comida, transporte, piso…',        frec: 'semana', dia: 1 },
+  sueldo: { emoji: '💼',     titulo: 'Sueldo',                      sub: 'Trabajas y cobras',                     frec: 'mes',    dia: 1 },
+  otro:   { emoji: '✨',     titulo: 'Otro ingreso',                sub: 'Beca, clases particulares, ventas…',    frec: 'mes',    dia: 1 }
+};
+const FIJOS_RAPIDOS = [
+  ['🏠', 'Piso'], ['📱', 'Móvil'], ['🏋️', 'Gimnasio'], ['🎵', 'Spotify'], ['🚌', 'Transporte'], ['📺', 'Netflix'], ['➕', 'Otro']
+];
+const BANCOS_RAPIDOS = ['Revolut', 'BBVA', 'Santander', 'CaixaBank', 'ING', 'Bankinter', 'Sabadell', 'Openbank', 'N26', 'Unicaja', 'Kutxabank', 'Abanca'];
+const emojiCuenta = n => /efectivo|cash|met[aá]l/i.test(n) ? '💶' : '🏦';
+// Devuelve una cuenta que exista (por si se borró la que estaba elegida)
+const cuentaValida = id => (B.cuentas.some(c => c.id === id) ? id : (B.cuentas[0] || {}).id);
+const nombreCuenta = id => ((B.cuentas.find(c => c.id === id) || {}).nombre || '').trim();
+// Botones para elegir cuenta (solo salen si tiene más de una)
+function selectorCuenta(idHtml, actual, titulo) {
+  if (B.cuentas.length < 2) return '';
+  return `<div class="etq">${titulo}</div><div class="chips" id="${idHtml}">${B.cuentas.map(c =>
+    `<button class="chip ${c.id === actual ? 'on' : ''}" data-v="${c.id}">${emojiCuenta(c.nombre)} ${esc(c.nombre.trim() || 'Sin nombre')}</button>`).join('')}</div>`;
+}
+function montarSelectorCuenta(idHtml, cb) {
+  if (!$(idHtml)) return;
+  $(idHtml).querySelectorAll('.chip').forEach(b => b.onclick = () => { cb(b.dataset.v); guardarBorrador(); pintar(true); });
+}
+const DIAS_SEM = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];   // 1 = lunes … 7 = domingo
+const DIAS_NOMBRE = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+// ---------- Borrador del cuestionario (se guarda en cada paso por si se cierra la app) ----------
+const VACIO = () => ({
+  paso: 0, nombre: '', periodo: '', cuentas: [], fuentes: [], sinIngresos: false, ingresos: {},
+  fijos: [], tieneAhorro: null, ahorro: { importe: null, modo: '', hasta: '' }, sobrante: ''
+});
+let B = Object.assign(VACIO(), leer('presu_borrador') || {});
+let direccion = 1;
+const guardarBorrador = () => guardar('presu_borrador', B);
+
+// Lista de pasos (cambia según lo que elijas: un paso por cada tipo de ingreso)
+function pasos() {
+  return ['bienvenida', 'nombre', 'periodo', 'cuentas', 'fuentes', ...B.fuentes.map(f => 'ingreso:' + f), 'fijos', 'ahorro', 'sobrante', 'plan'];
+}
+const palabraPeriodo = () => B.periodo === 'mes' ? 'mes' : 'semana';
+
+function ir(delta) {
+  const lista = pasos();
+  B.paso = Math.max(0, Math.min(lista.length - 1, B.paso + delta));
+  direccion = delta;
+  guardarBorrador();
+  pintar();
+  window.scrollTo(0, 0);
+}
+
+// ---------- Cálculo del plan ----------
+// Pasa una cantidad de "cada semana" / "cada mes" al periodo elegido
+function aPeriodo(importe, frec, periodo) {
+  if (frec === periodo) return importe;
+  return periodo === 'semana' ? importe * 12 / 52 : importe * 52 / 12;
+}
+function periodosHasta(hasta, periodo) {
+  const [y1, m1, d1] = hoyIso().split('-').map(Number), [y2, m2, d2] = hasta.split('-').map(Number);
+  if (periodo === 'mes') return Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
+  return Math.max(1, Math.ceil((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1) + 864e5) / (7 * 864e5)));
+}
+function calcularPlan() {
+  const p = B.periodo || 'semana';
+  const ingresos = B.fuentes.reduce((a, f) => a + aPeriodo(B.ingresos[f].importe || 0, B.ingresos[f].frec, p), 0);
+  const fijos = B.fijos.reduce((a, x) => a + aPeriodo(x.importe || 0, x.frec, p), 0);
+  let deAhorros = 0, nPeriodos = 0;
+  if (B.tieneAhorro && B.ahorro.modo === 'gastar' && B.ahorro.hasta) {
+    nPeriodos = periodosHasta(B.ahorro.hasta, p);
+    deAhorros = (B.ahorro.importe || 0) / nPeriodos;
+  }
+  const hayMensualEnSemanas = p === 'semana' && (B.fuentes.some(f => B.ingresos[f].frec === 'mes') || B.fijos.some(x => x.frec === 'mes'));
+  return { ingresos, fijos, deAhorros, nPeriodos, total: ingresos - fijos + deAhorros, aproximado: hayMensualEnSemanas };
+}
+
+// ---------- Validación de cada paso ----------
+function puedeSeguir(id) {
+  if (id === 'nombre') return B.nombre.trim().length > 0;
+  if (id === 'periodo') return !!B.periodo;
+  if (id === 'cuentas') {
+    const n = B.cuentas.map(c => c.nombre.trim().toLowerCase());
+    return n.length > 0 && n.every(Boolean) && new Set(n).size === n.length;
+  }
+  if (id === 'fuentes') return B.fuentes.length > 0 || B.sinIngresos;
+  if (id.startsWith('ingreso:')) { const i = B.ingresos[id.slice(8)]; return i && i.importe > 0 && (id.slice(8) !== 'otro' || (i.nombre || '').trim()); }
+  if (id === 'fijos') return B.fijos.every(x => x.importe > 0 && x.nombre.trim());
+  if (id === 'ahorro') {
+    if (B.tieneAhorro === false) return true;
+    if (B.tieneAhorro !== true || !(B.ahorro.importe > 0) || !B.ahorro.modo) return false;
+    return B.ahorro.modo === 'hucha' || (B.ahorro.hasta && B.ahorro.hasta > hoyIso());
+  }
+  if (id === 'sobrante') return !!B.sobrante;
+  return true;
+}
+function porQueNo(id) {
+  if (id === 'nombre') return 'Escribe tu nombre';
+  if (id === 'periodo' || id === 'sobrante') return 'Elige una opción';
+  if (id === 'fuentes') return 'Elige al menos una opción';
+  if (id === 'cuentas') {
+    if (!B.cuentas.length) return 'Añade al menos una cuenta';
+    if (B.cuentas.some(c => !c.nombre.trim())) return 'Ponle nombre a cada cuenta (o quítala con ✕)';
+    return 'Hay dos cuentas con el mismo nombre';
+  }
+  if (id.startsWith('ingreso:')) return id === 'ingreso:otro' && !(B.ingresos.otro.nombre || '').trim() ? 'Ponle un nombre' : 'Escribe la cantidad';
+  if (id === 'fijos') return 'Pon nombre y cantidad a cada gasto (o quítalo con ✕)';
+  if (id === 'ahorro') {
+    if (B.tieneAhorro !== true) return 'Elige una opción';
+    if (!(B.ahorro.importe > 0)) return 'Escribe cuánto tienes ahorrado';
+    if (!B.ahorro.modo) return 'Elige qué hacemos con él';
+    return 'Elige hasta cuándo (una fecha futura)';
+  }
+  return '';
+}
+
+// ---------- Pantallas ----------
+function opcion(o) {
+  return `<button class="opcion ${o.on ? 'on' : ''}" data-v="${esc(o.v)}">
+    <div class="ico">${o.emoji}</div><div><b>${esc(o.titulo)}</b>${o.sub ? `<span class="sub">${esc(o.sub)}</span>` : ''}</div>
+    <div class="marca"></div></button>`;
+}
+function seg(id, valores, actual) {
+  return `<div class="seg" id="${id}">${valores.map(([v, t]) => `<button data-v="${v}" class="${v === actual ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+}
+
+const PANTALLAS = {
+  bienvenida: () => ({
+    clase: 'bienvenida', sinArriba: true,
+    html: `${LOGO}<h1>Hola 👋<br>Esto es Pre$u</h1>
+      <p class="ayuda">Vamos a montar tu presupuesto en un minuto. Todo se queda en tu móvil y podrás cambiarlo cuando quieras.</p>`,
+    boton: 'Empezar'
+  }),
+
+  nombre: () => ({
+    html: `<div class="emoji">🙂</div><h1>¿Cómo te llamas?</h1><p class="ayuda">Para saludarte al abrir la app.</p>
+      <input id="iNombre" class="texto" type="text" maxlength="30" autocomplete="given-name" enterkeyhint="next" placeholder="Tu nombre" value="${esc(B.nombre)}">`,
+    alMontar() { const i = $('iNombre'); i.oninput = () => { B.nombre = i.value; guardarBorrador(); actualizarBoton(); }; setTimeout(() => i.focus(), 250); }
+  }),
+
+  periodo: () => ({
+    html: `<div class="emoji">🗓️</div><h1>¿Cómo quieres ver tu dinero?</h1>
+      <p class="ayuda">Te diremos cuánto puedes gastar en cada periodo. Lo puedes cambiar luego en Ajustes.</p>
+      <div class="opciones" id="oPeriodo">
+        ${opcion({ v: 'semana', emoji: '📅', titulo: 'Por semanas', sub: '«Te quedan 40 € esta semana»', on: B.periodo === 'semana' })}
+        ${opcion({ v: 'mes', emoji: '🗓️', titulo: 'Por meses', sub: '«Te quedan 300 € este mes»', on: B.periodo === 'mes' })}
+      </div>`,
+    alMontar() { elegirUna('oPeriodo', v => { B.periodo = v; }); }
+  }),
+
+  cuentas: () => {
+    const tiene = n => B.cuentas.some(c => c.nombre.trim().toLowerCase() === n.toLowerCase());
+    return {
+      html: `<div class="emoji">🏦</div><h1>¿Dónde tienes tu dinero?</h1>
+        <p class="ayuda">Tus bancos, tarjetas o efectivo. Añade todas las que uses.</p>
+        <div class="chips" id="cRapidas">
+          ${BANCOS_RAPIDOS.map(n => `<button class="chip ${tiene(n) ? 'on' : ''}" data-n="${n}">${n}</button>`).join('')}
+          <button class="chip ${tiene('Efectivo') ? 'on' : ''}" data-n="Efectivo">💶 Efectivo</button>
+          <button class="chip" data-n="">➕ Otra</button>
+        </div>
+        <div class="tarjeta ${B.cuentas.length ? '' : 'oculto'}" style="margin-top:18px">
+          ${B.cuentas.map(c => `<div class="fijo" data-id="${c.id}">
+            <span class="ico">${emojiCuenta(c.nombre)}</span>
+            <input class="nom" type="text" maxlength="24" value="${esc(c.nombre)}" placeholder="Nombre (ej: Tarjeta del Santander)">
+            <button class="quitar" aria-label="Quitar">✕</button></div>`).join('')}
+        </div>
+        <div class="nota">Podrás añadir, quitar o cambiar el nombre en Ajustes.</div>`,
+      alMontar() {
+        $('cRapidas').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+          const n = b.dataset.n;
+          if (n && tiene(n)) B.cuentas = B.cuentas.filter(c => c.nombre.trim().toLowerCase() !== n.toLowerCase());
+          else B.cuentas.push({ id: nuevoId(), nombre: n });
+          guardarBorrador(); pintar(true);
+          if (!n) { const filas = document.querySelectorAll('.fijo .nom'); filas[filas.length - 1].focus(); }
+        });
+        document.querySelectorAll('.fijo').forEach(fila => {
+          const c = B.cuentas.find(x => x.id === fila.dataset.id);
+          fila.querySelector('.nom').oninput = e => { c.nombre = e.target.value; fila.querySelector('.ico').textContent = emojiCuenta(c.nombre); guardarBorrador(); actualizarBoton(); };
+          fila.querySelector('.quitar').onclick = () => { B.cuentas = B.cuentas.filter(x => x !== c); guardarBorrador(); pintar(true); };
+        });
+      }
+    };
+  },
+
+  fuentes: () => ({
+    html: `<div class="emoji">💶</div><h1>¿De dónde te llega el dinero?</h1>
+      <p class="ayuda">Marca todas las que tengas.</p>
+      <div class="opciones" id="oFuentes">
+        ${Object.entries(FUENTES).map(([v, f]) => opcion({ v, emoji: f.emoji, titulo: f.titulo, sub: f.sub, on: B.fuentes.includes(v) })).join('')}
+        ${opcion({ v: 'nada', emoji: '🚫', titulo: 'Ahora mismo no me entra dinero', sub: 'Solo quiero organizar mis ahorros', on: B.sinIngresos })}
+      </div>`,
+    alMontar() {
+      $('oFuentes').querySelectorAll('.opcion').forEach(b => b.onclick = () => {
+        const v = b.dataset.v;
+        if (v === 'nada') { B.sinIngresos = !B.sinIngresos; if (B.sinIngresos) B.fuentes = []; }
+        else {
+          B.sinIngresos = false;
+          B.fuentes = B.fuentes.includes(v) ? B.fuentes.filter(x => x !== v) : Object.keys(FUENTES).filter(k => k === v || B.fuentes.includes(k));
+          if (!B.ingresos[v]) B.ingresos[v] = { importe: null, frec: FUENTES[v].frec, dia: FUENTES[v].dia, nombre: '', cuenta: '' };
+        }
+        guardarBorrador(); pintar(true);
+      });
+    }
+  }),
+
+  ingreso: tipo => {
+    const f = FUENTES[tipo], i = B.ingresos[tipo];
+    i.cuenta = cuentaValida(i.cuenta);
+    const cuando = i.frec === 'semana'
+      ? `<div class="etq">¿Qué día te llega?</div><div class="dias" id="iDias">${DIAS_SEM.map((d, k) => `<button data-v="${k + 1}" class="${i.dia === k + 1 ? 'on' : ''}">${d}</button>`).join('')}</div>`
+      : `<div class="etq">¿Qué día del mes te llega?</div>
+         <div class="paso-dia"><span>Día</span><div class="ctrl"><button id="dMenos" aria-label="Un día menos">−</button><b id="dDia">${i.dia}</b><button id="dMas" aria-label="Un día más">+</button></div></div>
+         <div class="nota">Si el mes es más corto, cuenta el último día.</div>`;
+    return {
+      html: `<div class="emoji">${f.emoji}</div><h1>${tipo === 'otro' ? 'Otro ingreso' : esc(f.titulo)}</h1>
+        <p class="ayuda">Pon lo normal. Si ${i.frec === 'mes' ? 'algún mes' : 'alguna semana'} es distinto, lo podrás cambiar solo esa vez.</p>
+        ${tipo === 'otro' ? `<input id="iNomOtro" class="texto" type="text" maxlength="30" placeholder="¿Qué es? (ej: beca)" value="${esc(i.nombre)}" style="margin-bottom:18px">` : ''}
+        <div class="tarjeta">
+          <input id="iImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${fmtImporte(i.importe)}">
+          <div class="etq" style="margin-top:14px">¿Cada cuánto?</div>
+          ${seg('iFrec', [['semana', 'Cada semana'], ['mes', 'Cada mes']], i.frec)}
+          ${cuando}
+          ${selectorCuenta('iCuenta', i.cuenta, '¿Dónde te llega?')}
+        </div>`,
+      alMontar() {
+        const imp = $('iImporte');
+        imp.oninput = () => { i.importe = num(imp.value); guardarBorrador(); actualizarBoton(); };
+        if ($('iNomOtro')) $('iNomOtro').oninput = e => { i.nombre = e.target.value; guardarBorrador(); actualizarBoton(); };
+        segmento('iFrec', v => { i.frec = v; i.dia = 1; guardarBorrador(); pintar(true); });
+        montarSelectorCuenta('iCuenta', v => { i.cuenta = v; });
+        if ($('iDias')) $('iDias').querySelectorAll('button').forEach(b => b.onclick = () => { i.dia = +b.dataset.v; guardarBorrador(); pintar(true); });
+        if ($('dMas')) {
+          const cambia = d => { i.dia = ((i.dia - 1 + d + 31) % 31) + 1; $('dDia').textContent = i.dia; guardarBorrador(); };
+          $('dMas').onclick = () => cambia(1); $('dMenos').onclick = () => cambia(-1);
+        }
+        if (!imp.value && !(tipo === 'otro' && !i.nombre)) setTimeout(() => imp.focus(), 250);
+      }
+    };
+  },
+
+  fijos: () => ({
+    html: `<div class="emoji">📌</div><h1>¿Pagas algo fijo?</h1>
+      <p class="ayuda">Cosas que se repiten: piso, móvil, gimnasio… Se restan antes de calcular lo que puedes gastar.</p>
+      <div class="chips" id="fRapidos">${FIJOS_RAPIDOS.map(([e, n]) => `<button class="chip" data-e="${e}" data-n="${n}">${e} ${n}</button>`).join('')}</div>
+      <div class="tarjeta ${B.fijos.length ? '' : 'oculto'}" id="fLista" style="margin-top:18px">
+        ${B.fijos.map(x => `<div class="fijo" data-id="${x.id}">
+          <span class="ico">${x.emoji}</span>
+          <input class="nom" type="text" maxlength="30" value="${esc(x.nombre)}" placeholder="Nombre">
+          <input class="cant" type="text" inputmode="decimal" placeholder="0 €" value="${fmtImporte(x.importe)}">
+          <button class="quitar" aria-label="Quitar">✕</button>
+          <div class="extra"><button class="frec">${x.frec === 'mes' ? 'al mes' : 'a la sem.'}</button>
+          ${B.cuentas.length > 1 ? `<button class="frec cta" title="Desde qué cuenta lo pagas">${emojiCuenta(nombreCuenta(cuentaValida(x.cuenta)))} ${esc(nombreCuenta(cuentaValida(x.cuenta)))}</button>` : ''}</div></div>`).join('')}
+      </div>
+      <div class="nota ${B.fijos.length ? '' : 'oculto'}">Toca «al mes» para cambiarlo a «a la semana»${B.cuentas.length > 1 ? ', y el nombre de la cuenta para elegir desde cuál lo pagas' : ''}.</div>`,
+    boton: B.fijos.length ? 'Continuar' : 'No pago nada fijo',
+    alMontar() {
+      $('fRapidos').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+        const nombre = c.dataset.n === 'Otro' ? '' : c.dataset.n;
+        if (nombre && B.fijos.some(x => x.nombre === nombre)) { aviso(nombre + ' ya está en la lista'); return; }
+        const id = nuevoId();
+        B.fijos.push({ id, emoji: c.dataset.e, nombre, importe: null, frec: 'mes', cuenta: cuentaValida('') });
+        guardarBorrador(); pintar(true);
+        const fila = document.querySelector(`.fijo[data-id="${id}"]`);
+        (nombre ? fila.querySelector('.cant') : fila.querySelector('.nom')).focus();
+      });
+      document.querySelectorAll('.fijo').forEach(fila => {
+        const x = B.fijos.find(y => y.id === fila.dataset.id);
+        fila.querySelector('.nom').oninput = e => { x.nombre = e.target.value; guardarBorrador(); actualizarBoton(); };
+        fila.querySelector('.cant').oninput = e => { x.importe = num(e.target.value); guardarBorrador(); actualizarBoton(); };
+        if (fila.querySelector('.cta')) fila.querySelector('.cta').onclick = e => {
+          const k = B.cuentas.findIndex(c => c.id === cuentaValida(x.cuenta));
+          x.cuenta = B.cuentas[(k + 1) % B.cuentas.length].id; e.target.textContent = emojiCuenta(nombreCuenta(x.cuenta)) + ' ' + nombreCuenta(x.cuenta); guardarBorrador();
+        };
+        fila.querySelector('.frec:not(.cta)').onclick = e => { x.frec = x.frec === 'mes' ? 'semana' : 'mes'; e.target.textContent = x.frec === 'mes' ? 'al mes' : 'a la sem.'; guardarBorrador(); };
+        fila.querySelector('.quitar').onclick = () => { B.fijos = B.fijos.filter(y => y !== x); guardarBorrador(); pintar(true); };
+      });
+    }
+  }),
+
+  ahorro: () => {
+    const a = B.ahorro;
+    const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
+    const finCurso = (m >= 7 ? y + 1 : y) + '-06-30', finAno = y + '-12-31';
+    const en6 = (() => { const d = new Date(); d.setMonth(d.getMonth() + 6); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
+    const rapidas = [['Fin de curso', finCurso], ['Fin de año', finAno], ['En 6 meses', en6]].filter(([, f]) => f > hoyIso());
+    const otraFecha = a.hasta && !rapidas.some(([, f]) => f === a.hasta);
+    return {
+      html: `<div class="emoji">🐷</div><h1>¿Tienes dinero ahorrado?</h1>
+        <p class="ayuda">Dinero que ya tienes guardado ahora mismo.</p>
+        <div class="opciones" id="oTiene">
+          ${opcion({ v: 'no', emoji: '🙅', titulo: 'No, empiezo de cero', on: B.tieneAhorro === false })}
+          ${opcion({ v: 'si', emoji: '💰', titulo: 'Sí, tengo ahorros', on: B.tieneAhorro === true })}
+        </div>
+        <div class="${B.tieneAhorro ? '' : 'oculto'}">
+          <div class="tarjeta" style="margin-top:18px">
+            <div class="sub" style="text-align:center;color:var(--sub);font-size:14px">¿Cuánto tienes?</div>
+            <input id="aImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${fmtImporte(a.importe)}">
+            ${selectorCuenta('aCuenta', (a.cuenta = cuentaValida(a.cuenta)), '¿Dónde lo tienes?')}
+          </div>
+          <div class="etq">¿Qué hacemos con él?</div>
+          <div class="opciones" id="oModo">
+            ${opcion({ v: 'gastar', emoji: '💸', titulo: 'Usarlo para gastar', sub: 'Se reparte entre ' + (B.periodo === 'mes' ? 'los meses' : 'las semanas') + ' hasta la fecha que elijas', on: a.modo === 'gastar' })}
+            ${opcion({ v: 'hucha', emoji: '🐷', titulo: 'Guardarlo en la hucha', sub: 'No cuenta para gastar. Si hay un imprevisto, podrás pagar con la hucha', on: a.modo === 'hucha' })}
+          </div>
+          <div class="${a.modo === 'gastar' ? '' : 'oculto'}">
+            <div class="etq">¿Hasta cuándo quieres que te dure?</div>
+            <div class="chips" id="aRapidas">
+              ${rapidas.map(([t, f]) => `<button class="chip ${a.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
+              <button class="chip ${otraFecha ? 'on' : ''}" data-f="otra">Otra fecha</button>
+            </div>
+            <input id="aFecha" class="texto ${otraFecha ? '' : 'oculto'}" type="date" min="${hoyIso()}" value="${otraFecha ? a.hasta : ''}" style="margin-top:12px">
+          </div>
+        </div>`,
+      alMontar() {
+        elegirUna('oTiene', v => { B.tieneAhorro = v === 'si'; }, true);
+        if (!B.tieneAhorro) return;
+        montarSelectorCuenta('aCuenta', v => { a.cuenta = v; });
+        $('aImporte').oninput = e => { a.importe = num(e.target.value); guardarBorrador(); actualizarBoton(); };
+        elegirUna('oModo', v => { a.modo = v; }, true);
+        $('aRapidas').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+          if (c.dataset.f === 'otra') { a.hasta = ''; guardarBorrador(); pintar(true); $('aFecha').classList.remove('oculto'); $('aFecha').focus(); document.querySelector('#aRapidas [data-f=otra]').classList.add('on'); return; }
+          a.hasta = c.dataset.f; guardarBorrador(); pintar(true);
+        });
+        $('aFecha').onchange = e => { a.hasta = e.target.value; guardarBorrador(); actualizarBoton(); };
+      }
+    };
+  },
+
+  sobrante: () => {
+    const p = palabraPeriodo(), sig = p === 'mes' ? 'Al mes siguiente' : 'A la semana siguiente';
+    return {
+      html: `<div class="emoji">🎯</div><h1>Si te sobra dinero ${p === 'mes' ? 'un mes' : 'una semana'}…</h1>
+        <p class="ayuda">¿Qué hacemos con lo que no gastes?</p>
+        <div class="opciones" id="oSobrante">
+          ${opcion({ v: 'ahorro', emoji: '🐷', titulo: 'Guardarlo como ahorro', sub: 'Lo que sobra se va sumando a lo ahorrado', on: B.sobrante === 'ahorro' })}
+          ${opcion({ v: 'siguiente', emoji: '➡️', titulo: sig, sub: p === 'mes' ? 'Lo que sobra se suma al mes siguiente' : 'Lo que sobra se suma a la semana siguiente', on: B.sobrante === 'siguiente' })}
+        </div>`,
+      alMontar() { elegirUna('oSobrante', v => { B.sobrante = v; }); }
+    };
+  },
+
+  plan: () => {
+    const c = calcularPlan(), p = palabraPeriodo(), esteP = p === 'mes' ? 'al mes' : 'a la semana';
+    const filas = [];
+    if (c.ingresos) filas.push(['Te entra', '+' + eur(c.ingresos)]);
+    if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
+    if (c.deAhorros) filas.push([`De tus ahorros (${c.nPeriodos} ${p === 'mes' ? 'meses' : 'semanas'})`, '+' + eur(c.deAhorros)]);
+    const hucha = B.tieneAhorro && B.ahorro.modo === 'hucha' ? B.ahorro.importe : 0;
+    return {
+      html: `<div class="emoji">🎉</div><h1>Listo, ${esc(B.nombre.trim())}</h1>
+        <p class="ayuda">Este es tu plan:</p>
+        <div class="tarjeta" style="text-align:center;padding:24px 18px">
+          <div style="color:var(--sub);font-size:15px">Puedes gastar</div>
+          <div class="grande ${c.total < 0 ? 'neg' : 'pos'}">${eur(c.total)}</div>
+          <div style="color:var(--sub);font-size:15px">${esteP}${c.aproximado ? ' (aprox.)' : ''}</div>
+        </div>
+        ${filas.length ? `<div class="tarjeta" style="margin-top:14px">
+          ${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
+          <div class="linea total"><span>Para gastar</span><b>${eur(c.total)}</b></div></div>` : ''}
+        ${hucha ? `<div class="tarjeta" style="margin-top:14px"><div class="linea"><span>🐷 En la hucha (no se toca)</span><b>${eur(hucha)}</b></div></div>` : ''}
+        <p class="nota" style="margin-top:14px">${c.total < 0
+          ? 'Ahora mismo pagas más de lo que te entra. Puedes revisar las cantidades volviendo atrás.'
+          : c.aproximado ? 'Como algo es mensual, cada semana se reajusta sola según lo que te quede del mes.'
+          : (p === 'mes' ? 'Si un mes' : 'Si una semana') + ' gastas menos, lo que sobre ' + (B.sobrante === 'ahorro' ? 'irá a tus ahorros.' : p === 'mes' ? 'se sumará al mes siguiente.' : 'se sumará a la semana siguiente.')}
+          Todo se puede cambiar en Ajustes.</p>`,
+      boton: 'Empezar a usar Pre$u'
+    };
+  }
+};
+
+// ---------- Ayudas para los botones ----------
+function elegirUna(id, cb, repintar) {
+  $(id).querySelectorAll('.opcion').forEach(b => b.onclick = () => {
+    cb(b.dataset.v); guardarBorrador();
+    if (repintar) return pintar(true);
+    $(id).querySelectorAll('.opcion').forEach(x => x.classList.toggle('on', x === b));
+    actualizarBoton();
+  });
+}
+function segmento(id, cb) {
+  $(id).querySelectorAll('button').forEach(b => b.onclick = () => cb(b.dataset.v));
+}
+function actualizarBoton() {
+  const id = pasos()[B.paso], b = $('bSeguir');
+  if (b) b.style.opacity = puedeSeguir(id) ? '' : '.4';
+}
+
+// ---------- Dibujar el paso actual ----------
+function pintar(mismoPaso) {
+  if (leer('presu')) return pintarInicio();
+  const lista = pasos();
+  if (B.paso >= lista.length) B.paso = lista.length - 1;
+  const id = lista[B.paso];
+  const p = id.startsWith('ingreso:') ? PANTALLAS.ingreso(id.slice(8)) : PANTALLAS[id]();
+  const progreso = Math.round(B.paso / (lista.length - 1) * 100);
+  // Si solo cambia algo dentro del mismo paso, se conserva el scroll y no se repite la animación
+  const y = window.scrollY;
+  $('raiz').innerHTML = `<section class="paso ${p.clase || ''}">
+    ${p.sinArriba ? '' : `<div class="arriba"><button class="atras" id="bAtras" aria-label="Atrás">${FLECHA}</button>
+      <div class="progreso"><i style="width:${progreso}%"></i></div></div>`}
+    <div class="cuerpo ${direccion < 0 ? 'vuelve' : ''}" ${mismoPaso ? 'style="animation:none"' : ''}>${p.html}</div>
+    <div class="abajo"><button class="boton" id="bSeguir">${p.boton || 'Continuar'}</button></div>
+  </section>`;
+  if (mismoPaso) window.scrollTo(0, y);
+  if ($('bAtras')) $('bAtras').onclick = () => ir(-1);
+  $('bSeguir').onclick = () => {
+    if (!puedeSeguir(id)) { aviso(porQueNo(id)); return; }
+    if (id === 'plan') return terminar();
+    ir(1);
+  };
+  if (p.alMontar) p.alMontar();
+  actualizarBoton();
+}
+
+// Intro en el teclado = Continuar
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT' && $('bSeguir')) { e.preventDefault(); e.target.blur(); $('bSeguir').click(); }
+});
+
+// ---------- Guardar el plan definitivo ----------
+function terminar() {
+  const datos = {
+    version: 1,
+    creado: hoyIso(),
+    nombre: B.nombre.trim(),
+    periodo: B.periodo,
+    sobrante: B.sobrante,
+    ingresos: B.fuentes.map(t => ({
+      id: nuevoId(), tipo: t, emoji: FUENTES[t].emoji,
+      nombre: t === 'otro' ? B.ingresos[t].nombre.trim() : FUENTES[t].titulo,
+      importe: r2(B.ingresos[t].importe), frec: B.ingresos[t].frec, dia: B.ingresos[t].dia, cuenta: cuentaValida(B.ingresos[t].cuenta)
+    })),
+    fijos: B.fijos.map(x => ({ id: x.id, emoji: x.emoji, nombre: x.nombre.trim(), importe: r2(x.importe), frec: x.frec, dia: 1, cuenta: cuentaValida(x.cuenta) })),
+    ahorro: B.tieneAhorro ? { importe: r2(B.ahorro.importe), modo: B.ahorro.modo, hasta: B.ahorro.modo === 'gastar' ? B.ahorro.hasta : '', cuenta: cuentaValida(B.ahorro.cuenta) } : null,
+    cuentas: B.cuentas.map(c => ({ id: c.id, nombre: c.nombre.trim(), emoji: emojiCuenta(c.nombre) })),
+    categorias: CATEGORIAS.slice(),
+    objetivos: [],
+    cambios: {},        // aquí irán los cambios de un periodo concreto (ej: este mes la paga fue 800 €)
+    movimientos: []
+  };
+  guardar('presu', datos);
+  localStorage.removeItem('presu_borrador');
+  pintarInicio(true);
+}
+
+// =====================================================================
+//  Pre$u · Parte 3: la app (Inicio, Movimientos, Resumen y Ajustes)
+// =====================================================================
+
+// ---------- Fechas (siempre texto 'yyyy-MM-dd', hora local) ----------
+const aUTC = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const deUTC = t => new Date(t).toISOString().slice(0, 10);
+const masDias = (s, n) => deUTC(aUTC(s) + n * 864e5);
+const diaSemana = s => ((new Date(aUTC(s)).getUTCDay() + 6) % 7) + 1;      // 1 = lunes … 7 = domingo
+const lunesDe = s => masDias(s, 1 - diaSemana(s));
+const diasDelMes = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();     // m: 1–12
+const primeroDe = s => s.slice(0, 7) + '-01';
+const finDeMes = s => { const [y, m] = s.split('-').map(Number); return s.slice(0, 8) + String(diasDelMes(y, m)).padStart(2, '0'); };
+const mesSiguiente = s => { let [y, m] = s.split('-').map(Number); if (++m > 12) { m = 1; y++; } return y + '-' + String(m).padStart(2, '0') + '-01'; };
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const fechaCorta = s => +s.slice(8) + ' ' + MESES[+s.slice(5, 7) - 1];
+const mayus = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Periodos: una semana empieza en lunes; un mes, el día 1
+const inicioPeriodo = (s, P) => P === 'mes' ? primeroDe(s) : lunesDe(s);
+const finPeriodo = (ini, P) => P === 'mes' ? finDeMes(ini) : masDias(ini, 6);
+const siguientePeriodo = (ini, P) => P === 'mes' ? mesSiguiente(ini) : masDias(ini, 7);
+// Cuántas semanas (lunes) tiene un mes
+function lunesEnMes(m) {
+  let f = lunesDe(m), n = 0;
+  if (f < m) f = masDias(f, 7);
+  for (const fin = finDeMes(m); f <= fin; f = masDias(f, 7)) n++;
+  return n;
+}
+// Días en los que toca algo fijo entre dos fechas (si el mes es más corto, el último día)
+function fechasDe(item, desde, hasta) {
+  // Si se cambió en Ajustes, cada versión vale desde/hasta una fecha (lo de antes no se toca)
+  if (item.desde && item.desde > desde) desde = item.desde;
+  if (item.hasta && item.hasta < hasta) hasta = item.hasta;
+  const r = [];
+  if (desde > hasta) return r;
+  if (item.frec === 'semana') {
+    for (let f = masDias(lunesDe(desde), (item.dia || 1) - 1); f <= hasta; f = masDias(f, 7)) if (f >= desde) r.push(f);
+  } else {
+    for (let m = primeroDe(desde); m <= hasta; m = mesSiguiente(m)) {
+      const [y, mm] = m.split('-').map(Number);
+      const f = m.slice(0, 8) + String(Math.min(item.dia || 1, diasDelMes(y, mm))).padStart(2, '0');
+      if (f >= desde && f <= hasta) r.push(f);
+    }
+  }
+  return r;
+}
+// Cada vez que toca un fijo tiene su clave (ej.: 'abc123|2026-11-01'). En D.cambios se guarda lo que pasó esa vez:
+//   { importe: 800 }  → esa vez fue otra cantidad (o «sí, me ha llegado»)
+//   { no: true }      → esa vez no llegó / no se pagó
+const clave = (item, f) => item.id + '|' + f;
+
+// ---------- Ahorros para gastar: cuánto toca en cada periodo ----------
+const contarPeriodos = (a, b, P) => { let n = 0; for (let p = a; p <= b; p = siguientePeriodo(p, P)) n++; return n; };
+const periodoAnterior = (p, P) => P === 'mes' ? primeroDe(masDias(p, -1)) : masDias(p, -7);
+// Tramos [{ desde, ultimo, cuota }]: si no se ha cambiado nunca, un solo tramo desde el principio hasta la fecha elegida
+function tramosAhorro(d) {
+  if (d.repartoAhorro) return d.repartoAhorro;
+  const a = d.ahorro, P = d.periodo;
+  if (!(a && a.modo === 'gastar' && a.hasta)) return [];
+  const primero = inicioPeriodo(d.creado, P), ultimo = inicioPeriodo(a.hasta, P);
+  return [{ desde: primero, ultimo, cuota: a.importe / Math.max(1, contarPeriodos(primero, ultimo, P)) }];
+}
+const cuotaEn = (tramos, p) => { let c = 0; tramos.forEach(t => { if (t.desde <= p && p <= t.ultimo) c = t.cuota; }); return c; };
+// «Lo que sobra» puede cambiarse en Ajustes: cuenta desde el periodo en que se cambió
+const sobranteEn = (d, p) => { let v = d.sobrante; (d.sobranteHist || []).forEach(x => { if (x.desde <= p) v = x.valor; }); return v; };
+
+// ---------- El cálculo de cada semana o mes ----------
+// Va periodo a periodo desde que empezó a usar Pre$u hasta hoy, pasando lo que sobra (o falta) de uno al siguiente.
+// «hasta» (opcional): calcular hasta otro periodo, por ejemplo uno futuro para ver lo previsto
+function calcular(d, hoy = hoyIso(), hasta) {
+  const P = d.periodo;
+  // Ingreso fijo: lo de antes de empezar con Pre$u y lo que aún no ha llegado se cuenta normal;
+  // si ya tocaba y no ha contestado, NO cuenta hasta que diga que sí.
+  const ing = (it, f) => { const c = d.cambios[clave(it, f)]; if (c) return c.no ? 0 : c.importe; return f < d.creado || f > hoy ? it.importe : 0; };
+  // Gasto fijo: se resta solo (salvo que esa vez se haya cambiado)
+  const fij = (it, f) => { const c = d.cambios[clave(it, f)]; return c ? (c.no ? 0 : c.importe) : it.importe; };
+  const suma = (lista, fn, desde, hasta) => lista.reduce((a, it) => a + fechasDe(it, desde, hasta).reduce((b, f) => b + fn(it, f), 0), 0);
+  const semIng = d.ingresos.filter(x => x.frec === 'semana'), mesIng = d.ingresos.filter(x => x.frec === 'mes');
+  const semFij = d.fijos.filter(x => x.frec === 'semana'), mesFij = d.fijos.filter(x => x.frec === 'mes');
+
+  const primero = inicioPeriodo(d.creado, P);
+  let actual = hasta || inicioPeriodo(hoy, P);
+  if (actual < primero) actual = primero;
+
+  // Ahorros «para gastar»: a partes iguales entre los periodos hasta la fecha elegida (por tramos si se cambió en Ajustes)
+  const a = d.ahorro;
+  const tramos = tramosAhorro(d);
+
+  // Por semanas: lo mensual de cada mes se reparte entre las semanas de ese mes (cada semana va con el mes de su lunes)
+  const bolsas = {};
+  const bolsa = m => bolsas[m] || (bolsas[m] = { entra: suma(mesIng, ing, m, finDeMes(m)), fijos: suma(mesFij, fij, m, finDeMes(m)), n: lunesEnMes(m) });
+
+  let arrastre = 0, ahorrado = 0, res = null;
+  for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
+    const fin = finPeriodo(p, P);
+    let entra, fijos, nSemanas = 0;
+    if (P === 'mes') {
+      entra = suma(d.ingresos, ing, p, fin);
+      fijos = suma(d.fijos, fij, p, fin);
+    } else {
+      const b = bolsa(primeroDe(p));
+      nSemanas = b.n;
+      entra = suma(semIng, ing, p, fin) + b.entra / b.n;
+      fijos = suma(semFij, fij, p, fin) + b.fijos / b.n;
+    }
+    entra = r2(entra); fijos = r2(fijos);     // a céntimos, para que lo que se ve sume exacto
+    const deAhorros = r2(cuotaEn(tramos, p));
+    const movs = d.movimientos.filter(x => x.fecha >= p && x.fecha <= fin);
+    const extras = movs.filter(x => x.tipo === 'ingreso').reduce((s, x) => s + x.importe, 0);
+    const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha).reduce((s, x) => s + x.importe, 0);
+    const total = entra + deAhorros - fijos + arrastre + extras;
+    res = { ini: p, fin, entra, deAhorros, fijos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas };
+    // Al acabar un periodo: si falta dinero, se resta del siguiente; si sobra, al ahorro o al siguiente (según eligió)
+    if (p < actual) {
+      if (res.queda < 0 || sobranteEn(d, p) === 'siguiente') arrastre = res.queda;
+      else { ahorrado += res.queda; arrastre = 0; }
+    }
+  }
+
+  // Ingresos que ya tocaban y esperan respuesta (del más antiguo al más nuevo)
+  const pendientes = [];
+  d.ingresos.forEach(it => fechasDe(it, d.creado, hoy).forEach(f => { if (!d.cambios[clave(it, f)]) pendientes.push({ item: it, fecha: f }); }));
+  pendientes.sort((x, y) => x.fecha < y.fecha ? -1 : 1);
+
+  const hucha = a && a.modo === 'hucha' ? a.importe - d.movimientos.filter(x => x.hucha).reduce((s, x) => s + x.importe, 0) : null;
+  // Ahorros «para gastar»: lo que aún queda por repartir
+  let gastarQueda = null;
+  if (a && a.modo === 'gastar') {
+    gastarQueda = 0;
+    const fin = tramos.reduce((m, t) => t.ultimo > m ? t.ultimo : m, '');
+    for (let p = siguientePeriodo(actual, P); p <= fin; p = siguientePeriodo(p, P)) gastarQueda += r2(cuotaEn(tramos, p));
+    gastarQueda = r2(gastarQueda);
+  }
+  return Object.assign(res, { ahorrado: r2(ahorrado), hucha, pendientes, gastarQueda });
+}
+
+// ---------- Estado de la app ----------
+// Categorías por defecto, ordenadas por lo que más suelen gastar los jóvenes (lo fijo, como piso o móvil, va en «Gastos fijos»)
+const CATEGORIAS = ['Comer fuera', 'Súper', 'Fiesta', 'Transporte', 'Ocio', 'Ropa', 'Viajes', 'Otros'];
+const CAT_EMOJI = { 'Comer fuera': '🍔', 'Súper': '🛒', Fiesta: '🍻', Compras: '🛍️', Transporte: '🚌', Ocio: '🎬', Ropa: '👕', Viajes: '✈️',
+  'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔' };
+const CATEGORIAS_ANTIGUAS = [['Comida', 'Ocio', 'Transporte', 'Ropa', 'Regalos', 'Otros'],
+  ['Comer fuera', 'Súper', 'Fiesta', 'Compras', 'Transporte', 'Ocio', 'Ropa', 'Viajes', 'Cuidado personal', 'Estudios', 'Regalos', 'Otros']];
+const emojiCat = c => CAT_EMOJI[c] || '🏷️';
+const ICONOS = {
+  inicio: '<svg viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>',
+  movimientos: '<svg viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="17.5" r="1.2"/></svg>',
+  resumen: '<svg viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20v-10"/></svg>',
+  ajustes: '<svg class="rueda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+};
+let D = null;              // los datos guardados (localStorage['presu'])
+let vista = 'inicio';      // inicio · movimientos · resumen · ajustes
+let F = null;              // lo que se está escribiendo en «Apuntar»
+let otraCantidad = false;  // si está abierto el campo «Otra cantidad» del aviso de ingresos
+const guardarDatos = () => guardar('presu', D);
+const cuentaApp = id => (D.cuentas.some(c => c.id === id) ? id : (D.cuentas[0] || {}).id);
+const formVacio = tipo => ({ tipo: tipo || 'gasto', importe: '', desc: '', cat: '', cuenta: cuentaApp(D.ultimaCuenta), fecha: '', hucha: false, verFecha: false });
+const fraseIngreso = it => ({ paga: 'la paga de tus padres', semana: 'el dinero para la semana', sueldo: 'el sueldo' }[it.tipo] || '«' + it.nombre + '»');
+function textoFecha(f) {
+  const h = hoyIso();
+  if (!f || f === h) return 'Hoy';
+  if (f === masDias(h, -1)) return 'Ayer';
+  if (f === masDias(h, 1)) return 'Mañana';
+  return mayus(DIAS_NOMBRE[diaSemana(f)]) + ', ' + fechaCorta(f);
+}
+
+// Se llama al abrir la app (y al acabar el cuestionario)
+function pintarInicio(recien) {
+  D = leer('presu');
+  D.cambios = D.cambios || {};
+  D.movimientos = D.movimientos || [];
+  // Si aún tiene la lista de categorías antigua (sin tocar), se cambia por la nueva
+  if (!D.categorias || CATEGORIAS_ANTIGUAS.some(l => l.join('|') === D.categorias.join('|'))) { D.categorias = CATEGORIAS.slice(); guardarDatos(); }
+  F = formVacio();
+  movIni = null;
+  pintarApp(true);
+}
+
+function pintarApp(conAnimacion) {
+  const y = window.scrollY;
+  const v = vista === 'inicio' ? vistaInicio() : vista === 'movimientos' ? vistaMovimientos() : vista === 'ajustes' ? vistaAjustes() : vistaResumen();
+  $('raiz').innerHTML = `<section class="app ${conAnimacion ? '' : 'quieta'}">${v.html}</section>${vista === 'ajustes' ? '' : barra()}`;
+  if (!conAnimacion) window.scrollTo(0, y);
+  if ($('bAjustes')) $('bAjustes').onclick = () => irA('ajustes');
+  document.querySelectorAll('.barra button').forEach(b => b.onclick = () => irA(b.dataset.v));
+  if (v.montar) v.montar();
+}
+function irA(v) {
+  if (v === vista) return window.scrollTo({ top: 0, behavior: 'smooth' });
+  vista = v; otraCantidad = false;
+  pintarApp(true); window.scrollTo(0, 0);
+}
+function barra() {
+  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['resumen', 'Resumen']].map(([v, t]) =>
+    `<button data-v="${v}" class="${vista === v ? 'on' : ''}">${ICONOS[v]}<span>${t}</span></button>`).join('')}</nav>`;
+}
+const botonAjustes = `<button class="atras" id="bAjustes" aria-label="Ajustes">${ICONOS.ajustes}</button>`;
+
+// ---------- 🏠 Inicio ----------
+function vistaInicio() {
+  const c = calcular(D), mes = D.periodo === 'mes', h = hoyIso();
+  const rango = mes ? mayus(MESES_L[+c.ini.slice(5, 7) - 1]) + ' ' + c.ini.slice(0, 4)
+    : 'Del ' + (c.ini.slice(5, 7) === c.fin.slice(5, 7) ? +c.ini.slice(8) : fechaCorta(c.ini)) + ' al ' + fechaCorta(c.fin);
+  const pct = c.queda < 0 ? 100 : c.total > 0 ? Math.min(100, c.queda / c.total * 100) : 0;
+
+  const filas = [];
+  if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
+  if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
+  if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
+  if (Math.abs(c.arrastre) >= .005) filas.push([mes ? 'Del mes pasado' : 'De la semana pasada', (c.arrastre > 0 ? '+' : '−') + eur(Math.abs(c.arrastre))]);
+  if (c.extras) filas.push(['Ingresos extra', '+' + eur(c.extras)]);
+  filas.push(['Gastado', (c.gastado ? '−' : '') + eur(c.gastado)]);
+  const hayMensual = !mes && [...D.ingresos, ...D.fijos].some(x => x.frec === 'mes');
+
+  // Aviso de ingreso fijo que espera respuesta
+  const p = c.pendientes[0];
+  const pregunta = p ? `<div class="tarjeta pregunta">
+      <div class="preg-tit">${p.item.emoji} ¿Te ha llegado ${esc(fraseIngreso(p.item))}?</div>
+      <div class="preg-sub">${p.fecha === h ? 'Toca hoy' : 'Tocaba el ' + fechaCorta(p.fecha)} · ${eur(p.item.importe)}</div>
+      <div class="preg-bot"><button class="mini-b si" id="pSi">Sí</button><button class="mini-b" id="pOtra">Otra cantidad</button><button class="mini-b" id="pNo">No</button></div>
+      ${otraCantidad ? `<div class="preg-otra"><input id="pImporte" class="texto" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="¿Cuánto te ha llegado?"><button class="mini-b si" id="pGuardar">Guardar</button></div>` : ''}
+      ${c.pendientes.length > 1 ? `<div class="nota">Tienes ${c.pendientes.length - 1} más por confirmar.</div>` : ''}
+    </div>` : '';
+
+  // Tarjeta «Apuntar»
+  const gasto = F.tipo === 'gasto';
+  const atajos = listaAtajos(F.tipo);
+  const hucha = gasto && c.hucha !== null;
+  const html = `
+    <div class="cab"><div class="cab-izq">${LOGO}<div><div class="cab-hola">Hola, ${esc(D.nombre)}</div>
+      <div class="cab-sub">${mayus(DIAS_NOMBRE[diaSemana(h)])}, ${+h.slice(8)} de ${MESES_L[+h.slice(5, 7) - 1]}</div></div></div>${botonAjustes}</div>
+    ${pregunta}
+    <div class="tarjeta hero">
+      <div class="hero-etq">Te queda ${mes ? 'este mes' : 'esta semana'}</div>
+      <div class="grande ${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</div>
+      <div class="hero-fechas">${rango}</div>
+      <div class="barrita"><i class="${c.queda < 0 ? 'neg' : ''}" style="width:${pct}%"></i></div>
+      <div class="desglose">${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
+        ${hayMensual ? `<div class="nota">Lo mensual se reparte entre las ${c.nSemanas} semanas de ${MESES_L[+c.ini.slice(5, 7) - 1]}.</div>` : ''}</div>
+    </div>
+    <div class="tarjeta apuntar" id="fApuntar">
+      <div class="tit-tarjeta">Apuntar</div>
+      ${seg('aTipo', [['gasto', 'Gasto'], ['ingreso', 'Ingreso extra']], F.tipo)}
+      ${atajos.length ? `<div class="atajos" id="aAtajos">${atajos.map(m => `<button class="chip">${m.cat ? emojiCat(m.cat) : '💶'} ${esc(m.desc)}</button>`).join('')}</div>` : ''}
+      <input id="aImp" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.importe)}">
+      <input id="aDesc" class="texto campo" type="text" maxlength="40" enterkeyhint="done" autocomplete="off"
+        placeholder="${gasto ? '¿En qué? (ej: café)' : '¿De qué? (ej: bizum de Pau)'}" value="${esc(F.desc)}">
+      ${gasto ? `<div class="etq">Categoría</div><div class="chips" id="aCats">${D.categorias.map(k =>
+        `<button class="chip ${F.cat === k ? 'on' : ''}" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}</button>`).join('')}</div>` : ''}
+      ${D.cuentas.length > 1 ? `<div class="etq">${gasto ? '¿Con qué has pagado?' : '¿Dónde te ha llegado?'}</div><div class="chips" id="aCuentas">${D.cuentas.map(k =>
+        `<button class="chip ${F.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}
+      <div class="fila"><span>📅 ${textoFecha(F.fecha)}</span><button class="enlace" id="aCambiarFecha">${F.verFecha ? 'Listo' : 'Cambiar'}</button></div>
+      ${F.verFecha ? `<input id="aFecha" class="texto campo" type="date" min="${fechaMin()}" max="${fechaMax()}" value="${F.fecha || h}">${notaFecha()}` : ''}
+      ${hucha ? `<div class="fila"><span>🐷 Pagar con la hucha<small>Te quedan ${eur(c.hucha)} · no cuenta ${mes ? 'este mes' : 'esta semana'}</small></span>
+        <button class="interruptor ${F.hucha ? 'on' : ''}" id="aHucha" aria-label="Pagar con la hucha"></button></div>` : ''}
+      <button class="boton" id="bGuardar">${gasto ? (F.hucha ? 'Pagar con la hucha' : 'Guardar gasto') : 'Guardar ingreso'}</button>
+    </div>`;
+
+  return {
+    html,
+    montar() {
+      if (p) {
+        const k = clave(p.item, p.fecha);
+        const responder = (v, t) => { D.cambios[k] = v; guardarDatos(); otraCantidad = false; aviso(t); pintarApp(); };
+        $('pSi').onclick = () => responder({ importe: p.item.importe }, 'Sumado: +' + eur(p.item.importe));
+        $('pNo').onclick = () => responder({ no: true }, 'Vale, no lo contamos');
+        $('pOtra').onclick = () => { otraCantidad = !otraCantidad; pintarApp(); if (otraCantidad) $('pImporte').focus(); };
+        if ($('pGuardar')) $('pGuardar').onclick = () => {
+          const n = num($('pImporte').value);
+          if (!(n > 0)) { aviso('Escribe la cantidad (si no ha llegado, pulsa «No»)'); return; }
+          responder({ importe: r2(n) }, 'Sumado: +' + eur(n));
+        };
+      }
+      segmento('aTipo', v => { if (v === F.tipo) return; F = formVacio(v); pintarApp(); });
+      $('aImp').oninput = e => { F.importe = e.target.value; };
+      $('aDesc').oninput = e => { F.desc = e.target.value; };
+      document.querySelectorAll('#aCats .chip').forEach(b => b.onclick = () => { F.cat = F.cat === b.dataset.v ? '' : b.dataset.v; pintarApp(); });
+      document.querySelectorAll('#aCuentas .chip').forEach(b => b.onclick = () => { F.cuenta = b.dataset.v; pintarApp(); });
+      document.querySelectorAll('#aAtajos .chip').forEach((b, i) => b.onclick = () => {
+        const m = atajos[i]; F.desc = m.desc; F.cat = m.cat || ''; F.cuenta = cuentaApp(m.cuenta);
+        pintarApp(); $('aImp').focus();
+      });
+      $('aCambiarFecha').onclick = () => {
+        F.verFecha = !F.verFecha; pintarApp();
+        if (F.verFecha) { const i = $('aFecha'); i.focus(); try { i.showPicker(); } catch (e) {} }
+      };
+      // Al elegir fecha no se cierra (en iPhone la rueda va cambiando); se cierra con «Listo»
+      if ($('aFecha')) $('aFecha').onchange = $('aFecha').oninput = e => {
+        const v = e.target.value;
+        if (!v || v < fechaMin() || v > fechaMax()) return;
+        F.fecha = v === h ? '' : v;
+        document.querySelector('#fApuntar .fila span').textContent = '📅 ' + textoFecha(F.fecha);
+      };
+      if ($('aHucha')) $('aHucha').onclick = () => { F.hucha = !F.hucha; pintarApp(); };
+      $('bGuardar').onclick = guardarMovimiento;
+    }
+  };
+}
+
+// Atajos: lo que más se repite (misma descripción, categoría y cuenta)
+function listaAtajos(tipo) {
+  const g = new Map();
+  D.movimientos.forEach((x, i) => {
+    if (x.tipo !== tipo || x.hucha || !(x.desc || '').trim()) return;
+    const k = x.desc.trim().toLowerCase() + '|' + (x.cat || '') + '|' + x.cuenta;
+    const v = g.get(k) || { n: 0 };
+    g.set(k, { n: v.n + 1, ult: i, m: x });
+  });
+  return [...g.values()].sort((a, b) => b.n - a.n || b.ult - a.ult).slice(0, 6).map(v => v.m);
+}
+
+function guardarMovimiento() {
+  const imp = num(F.importe), gasto = F.tipo === 'gasto';
+  if (!(imp > 0)) { aviso('Escribe la cantidad'); $('aImp').focus(); return; }
+  if (gasto && F.hucha) {
+    const queda = calcular(D).hucha;
+    if (imp > queda + 1e-9) { aviso('En la hucha solo te quedan ' + eur(queda)); return; }
+  }
+  const cat = gasto ? (F.cat || 'Otros') : '';
+  const m = { id: nuevoId(), tipo: F.tipo, importe: r2(imp), desc: F.desc.trim() || (gasto ? cat : 'Ingreso extra'),
+    cuenta: cuentaApp(F.cuenta), fecha: F.fecha || hoyIso(), ts: Date.now() };
+  if (gasto) m.cat = cat;
+  if (gasto && F.hucha) m.hucha = true;
+  D.movimientos.push(m);
+  D.ultimaCuenta = m.cuenta;
+  guardarDatos();
+  if (document.activeElement) document.activeElement.blur();
+  aviso(m.hucha ? 'Pagado con la hucha 🐷' : gasto ? 'Gasto apuntado ✓' : 'Ingreso apuntado ✓');
+  F = formVacio(F.tipo);
+  pintarApp();
+}
+
+// Intro en el teclado = Guardar (en Apuntar) / Guardar (en «Otra cantidad»)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || !D) return;
+  if (e.target.id === 'pImporte') { e.preventDefault(); $('pGuardar').click(); }
+  else if (e.target.closest('.hoja')) { e.preventDefault(); if ($('hGuardar')) $('hGuardar').click(); }
+  else if (e.target.closest('#fApuntar')) { e.preventDefault(); guardarMovimiento(); }
+});
+
+// ---------- 📋 Movimientos ----------
+let movIni = null;   // periodo que se está viendo en Movimientos (null = el actual)
+const FLECHA_DER = '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
+function textoRango(ini, fin) {
+  if (D.periodo === 'mes') return mayus(MESES_L[+ini.slice(5, 7) - 1]) + ' ' + ini.slice(0, 4);
+  return 'Del ' + (ini.slice(5, 7) === fin.slice(5, 7) ? +ini.slice(8) : fechaCorta(ini)) + ' al ' + fechaCorta(fin);
+}
+const fechaMin = () => inicioPeriodo(D.creado, D.periodo);
+const fechaMax = () => masDias(hoyIso(), 365);
+const notaFecha = () => `<div class="nota">Puedes elegir desde el ${fechaCorta(fechaMin())}, cuando empezaste con Pre$u.</div>`;
+const nombreCta = id => ((D.cuentas.find(c => c.id === id) || {}).nombre || '');
+
+// Lo fijo que cuenta en un periodo (por semanas, lo mensual es lo del mes de esa semana, que se reparte)
+function fijosDelPeriodo(ini, fin) {
+  const h = hoyIso(), r = [], semanas = D.periodo === 'semana';
+  const meter = (it, tipo, f, reparte) => {
+    const c = D.cambios[clave(it, f)];
+    let estado, valor = it.importe, espera = false;
+    if (tipo === 'ingreso') {
+      if (c) { valor = c.no ? 0 : c.importe; estado = c.no ? 'No llegó' : c.importe === it.importe ? 'Llegó' : 'Llegó otra cantidad'; }
+      else if (f < D.creado) estado = 'Contado';
+      else if (f > h) estado = 'Previsto';
+      else { estado = 'Esperando respuesta'; espera = true; }
+    } else {
+      if (c) { valor = c.no ? 0 : c.importe; estado = c.no ? 'Esta vez no se paga' : 'Cambiado esta vez'; }
+      else estado = 'Se resta solo';
+    }
+    r.push({ it, tipo, f, valor, estado, espera, no: !!(c && c.no), reparte });
+  };
+  [['ingreso', D.ingresos], ['fijo', D.fijos]].forEach(([tipo, lista]) => lista.forEach(it => {
+    if (semanas && it.frec === 'mes') fechasDe(it, primeroDe(ini), finDeMes(ini)).forEach(f => meter(it, tipo, f, lunesEnMes(primeroDe(ini))));
+    else fechasDe(it, ini, fin).forEach(f => meter(it, tipo, f, 0));
+  }));
+  return r.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : a.tipo === 'ingreso' ? -1 : 1);
+}
+
+function vistaMovimientos() {
+  const P = D.periodo, h = hoyIso(), mes = P === 'mes';
+  const primero = inicioPeriodo(D.creado, P), actual = inicioPeriodo(h, P) < primero ? primero : inicioPeriodo(h, P);
+  const ultimo = inicioPeriodo(masDias(h, mes ? 365 : 364), P);   // se puede mirar hasta un año adelante
+  if (!movIni || movIni > ultimo || movIni < primero) movIni = actual;
+  const ini = movIni, fin = finPeriodo(ini, P), esActual = ini === actual;
+  const anterior = mes ? primeroDe(masDias(ini, -1)) : masDias(ini, -7);
+  const futuro = ini > actual;
+  const c = calcular(D, h, ini);
+  const titulo = esActual ? (mes ? 'Este mes' : 'Esta semana')
+    : siguientePeriodo(ini, P) === actual ? (mes ? 'El mes pasado' : 'La semana pasada')
+    : siguientePeriodo(actual, P) === ini ? (mes ? 'El mes que viene' : 'La semana que viene') : textoRango(ini, fin);
+  const queda = futuro ? `Tendrás unos <span class="${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</span>`
+    : esActual ? `Te queda <span class="${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</span>`
+    : c.queda >= 0 ? `Te sobraron <span class="pos">${eur(c.queda)}</span>` : `Te faltaron <span class="neg">${eur(-c.queda)}</span>`;
+
+  const fijos = fijosDelPeriodo(ini, fin);
+  const movs = D.movimientos.map((m, i) => ({ m, i })).filter(x => x.m.fecha >= ini && x.m.fecha <= fin)
+    .sort((a, b) => a.m.fecha < b.m.fecha ? 1 : a.m.fecha > b.m.fecha ? -1 : b.i - a.i).map(x => x.m);
+  const variasCtas = D.cuentas.length > 1;
+  // Lo apuntado con fecha de antes de empezar con Pre$u no cuenta; sale en el primer periodo para poder borrarlo o cambiarle la fecha
+  const antes = ini === primero ? D.movimientos.filter(m => m.fecha < primero).sort((a, b) => a.fecha < b.fecha ? 1 : -1) : [];
+
+  const filaFijo = (x, k) => `<div class="mov" data-k="${k}">
+      <div class="ico">${x.it.emoji}</div>
+      <div class="txt"><b>${esc(x.it.nombre)}</b><span>${fechaCorta(x.f)}${variasCtas ? ' · ' + esc(nombreCta(x.it.cuenta)) : ''}</span>
+        <div class="estado ${x.espera ? 'espera' : ''}">${x.estado}</div></div>
+      <div class="cant ${x.no ? 'tachado' : x.tipo === 'ingreso' ? 'mas' : ''}">${x.tipo === 'ingreso' ? '+' : '−'}${eur(x.no ? x.it.importe : x.valor)}${x.reparte && !x.no ? `<small>${eur(x.valor / x.reparte)} esta sem.</small>` : ''}</div>
+    </div>`;
+  const filaMov = m => `<div class="mov" data-id="${m.id}">
+      <div class="ico">${m.tipo === 'ingreso' ? '💶' : emojiCat(m.cat)}</div>
+      <div class="txt"><b>${esc(m.desc)}</b><span>${m.tipo === 'ingreso' ? 'Extra' : esc(m.cat)} · ${textoFecha(m.fecha)}${variasCtas ? ' · ' + esc(nombreCta(m.cuenta)) : ''}${m.hucha ? ' · 🐷 Hucha' : ''}</span></div>
+      <div class="cant ${m.tipo === 'ingreso' ? 'mas' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${eur(m.importe)}</div>
+      <button class="borrar" aria-label="Borrar">✕</button>
+    </div>`;
+
+  return {
+    html: `<div class="cab"><h1>Movimientos</h1>${botonAjustes}</div>
+      <div class="tarjeta nav-per">
+        <button id="mAnt" aria-label="Anterior" class="${ini <= primero ? 'apagado' : ''}">${FLECHA}</button>
+        <div class="centro"><b>${titulo}</b><span>${textoRango(ini, fin)}</span><div class="queda">${queda}</div></div>
+        <button id="mSig" aria-label="Siguiente" class="${ini >= ultimo ? 'apagado' : ''}">${FLECHA_DER}</button>
+      </div>
+      ${fijos.length ? `<div class="sec-tit">Lo fijo ${esActual ? (mes ? 'de este mes' : 'de esta semana') : (mes ? 'del mes' : 'de la semana')}</div>
+        <div class="tarjeta lista" id="mFijos">${fijos.map(filaFijo).join('')}</div>` : ''}
+      <div class="sec-tit">Lo que has apuntado</div>
+      <div class="tarjeta lista" id="mMovs">${movs.length ? movs.map(filaMov).join('')
+        : `<div class="vacio">${futuro ? 'Nada apuntado para estas fechas.' : esActual ? 'Aún no has apuntado nada ' + (mes ? 'este mes' : 'esta semana') + '.<br>Apunta desde Inicio.' : 'No apuntaste nada.'}</div>`}</div>
+      ${antes.length ? `<div class="sec-tit">Antes de empezar (no cuentan)</div>
+        <div class="tarjeta lista" id="mAntes">${antes.map(filaMov).join('')}</div>
+        <p class="nota" style="margin:8px 6px 0">Tienen fecha de antes del ${fechaCorta(primero)}, cuando empezaste con Pre$u. Bórralos con ✕ o tócalos para cambiarles la fecha.</p>` : ''}`,
+    montar() {
+      $('mAnt').onclick = () => {
+        if (ini <= primero) return aviso(esActual ? 'Empezaste a usar Pre$u ' + (mes ? 'este mes' : 'esta semana') : 'Antes del ' + fechaCorta(primero) + ' no usabas Pre$u');
+        movIni = anterior; pintarApp();
+      };
+      $('mSig').onclick = () => { if (ini >= ultimo) return aviso('Puedes mirar hasta un año adelante'); movIni = siguientePeriodo(ini, P); pintarApp(); };
+      document.querySelectorAll('#mFijos .mov').forEach(el => el.onclick = () => hojaFijo(fijos[+el.dataset.k]));
+      document.querySelectorAll('#mMovs .mov, #mAntes .mov').forEach(el => {
+        el.onclick = () => hojaMovimiento(el.dataset.id);
+        el.querySelector('.borrar').onclick = e => { e.stopPropagation(); borrarMovimiento(el.dataset.id); };
+      });
+    }
+  };
+}
+
+function borrarMovimiento(id, despues) {
+  const m = D.movimientos.find(x => x.id === id);
+  if (!m || !confirm('¿Borrar «' + m.desc + '» (' + eur(m.importe) + ')?')) return;
+  D.movimientos = D.movimientos.filter(x => x !== m);
+  guardarDatos(); if (despues) despues();
+  aviso('Borrado'); pintarApp();
+}
+
+// ---------- Hoja que sube desde abajo ----------
+let hojaActual = null;
+function abrirHoja(construir) {
+  document.querySelectorAll('.velo, .hoja').forEach(e => e.remove());
+  const velo = document.createElement('div'), hoja = document.createElement('div');
+  velo.className = 'velo'; hoja.className = 'hoja'; hoja.id = 'hoja';
+  document.body.append(velo, hoja);
+  hojaActual = construir; pintarHoja();
+  void hoja.offsetHeight;   // para que se vea la animación
+  velo.classList.add('ver'); hoja.classList.add('ver');
+  velo.onclick = cerrarHoja;
+}
+function pintarHoja() {
+  const h = hojaActual(), el = $('hoja');
+  el.innerHTML = '<div class="asa"></div>' + h.html;
+  if ($('hCancelar')) $('hCancelar').onclick = cerrarHoja;
+  if (h.montar) h.montar();
+}
+function cerrarHoja() {
+  const v = document.querySelector('.velo'), h = $('hoja');
+  if (!h) return;
+  if (document.activeElement) document.activeElement.blur();
+  h.id = ''; v.classList.remove('ver'); h.classList.remove('ver');
+  setTimeout(() => { v.remove(); h.remove(); }, 300);
+}
+
+// Cambiar un ingreso o gasto fijo SOLO esa vez
+function hojaFijo(x) {
+  const { it, f } = x, ing = x.tipo === 'ingreso', k = clave(it, f), c = D.cambios[k];
+  let txt = fmtImporte(c && !c.no ? c.importe : it.importe);
+  abrirHoja(() => ({
+    html: `<h2>${it.emoji} ${esc(it.nombre)}</h2>
+      <p class="ayuda">${mayus(DIAS_NOMBRE[diaSemana(f)])}, ${fechaCorta(f)} · lo normal son ${eur(it.importe)}.<br>Solo cambia esta vez; las demás siguen igual.</p>
+      <div class="tarjeta">
+        <div class="etq" style="margin-top:0;text-align:center">${ing ? '¿Cuánto te ha llegado?' : '¿Cuánto pagas esta vez?'}</div>
+        <input id="eImp" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${txt}">
+        <div class="chips centrados" id="eSumar">${[10, 50, 100].map(v => `<button class="chip" data-v="${v}">+${v} €</button>`).join('')}</div>
+      </div>
+      <div class="botones-hoja">
+        <button class="boton" id="hGuardar">Guardar</button>
+        <button class="boton suave" id="hNo">${ing ? 'No ha llegado' : 'Esta vez no se paga'}</button>
+        ${c ? `<button class="boton sec" id="hNormal">Deshacer el cambio</button>` : ''}
+        <button class="boton sec" id="hCancelar">Cancelar</button>
+      </div>`,
+    montar() {
+      const imp = $('eImp');
+      imp.oninput = () => { txt = imp.value; };
+      $('eSumar').querySelectorAll('.chip').forEach(b => b.onclick = () => { txt = fmtImporte(r2((num(txt) || 0) + +b.dataset.v)); imp.value = txt; });
+      const listo = t => { guardarDatos(); cerrarHoja(); aviso(t); pintarApp(); };
+      $('hGuardar').onclick = () => {
+        const n = num(txt);
+        if (isNaN(n) || n < 0) { aviso('Escribe la cantidad'); return; }
+        if (n === 0) D.cambios[k] = { no: true };
+        else if (r2(n) === it.importe && (!ing || f > hoyIso())) delete D.cambios[k];   // lo normal: no hace falta guardar nada
+        else D.cambios[k] = { importe: r2(n) };
+        listo('Guardado solo para esta vez ✓');
+      };
+      $('hNo').onclick = () => { D.cambios[k] = { no: true }; listo(ing ? 'Vale, no lo contamos' : 'Vale, esta vez no se resta'); };
+      if ($('hNormal')) $('hNormal').onclick = () => { delete D.cambios[k]; listo('Cambio deshecho'); };
+    }
+  }));
+}
+
+// Cambiar algo apuntado
+function hojaMovimiento(id) {
+  const m = D.movimientos.find(x => x.id === id);
+  if (!m) return;
+  const E = { importe: fmtImporte(m.importe), desc: m.desc, cat: m.cat || 'Otros', cuenta: cuentaApp(m.cuenta), fecha: m.fecha, hucha: !!m.hucha };
+  const gasto = m.tipo === 'gasto', h = hoyIso(), min = inicioPeriodo(D.creado, D.periodo);
+  const hucha = calcular(D).hucha, huchaLibre = hucha === null ? null : hucha + (m.hucha ? m.importe : 0);
+  abrirHoja(() => ({
+    html: `<h2>${gasto ? 'Cambiar gasto' : 'Cambiar ingreso extra'}</h2>
+      <div class="tarjeta" style="margin-top:12px">
+        <input id="eImp" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.importe)}">
+        <input id="eDesc" class="texto campo" type="text" maxlength="40" enterkeyhint="done" autocomplete="off" placeholder="Descripción" value="${esc(E.desc)}">
+        ${gasto ? `<div class="etq">Categoría</div><div class="chips" id="eCats">${D.categorias.map(k =>
+          `<button class="chip ${E.cat === k ? 'on' : ''}" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}</button>`).join('')}</div>` : ''}
+        ${D.cuentas.length > 1 ? `<div class="etq">${gasto ? '¿Con qué has pagado?' : '¿Dónde te ha llegado?'}</div><div class="chips" id="eCtas">${D.cuentas.map(k =>
+          `<button class="chip ${E.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}
+        <div class="etq">Fecha</div>
+        <input id="eFecha" class="texto campo" type="date" min="${min}" max="${fechaMax()}" value="${E.fecha}">${notaFecha()}
+        ${gasto && huchaLibre !== null ? `<div class="fila"><span>🐷 Pagar con la hucha<small>Tienes ${eur(huchaLibre)} para esto</small></span>
+          <button class="interruptor ${E.hucha ? 'on' : ''}" id="eHucha" aria-label="Pagar con la hucha"></button></div>` : ''}
+      </div>
+      <div class="botones-hoja">
+        <button class="boton" id="hGuardar">Guardar cambios</button>
+        <button class="boton rojo-txt" id="hBorrar">Borrar</button>
+        <button class="boton sec" id="hCancelar">Cancelar</button>
+      </div>`,
+    montar() {
+      $('eImp').oninput = e => { E.importe = e.target.value; };
+      $('eDesc').oninput = e => { E.desc = e.target.value; };
+      $('eFecha').onchange = e => { E.fecha = e.target.value; };
+      document.querySelectorAll('#eCats .chip').forEach(b => b.onclick = () => { E.cat = b.dataset.v; pintarHoja(); });
+      document.querySelectorAll('#eCtas .chip').forEach(b => b.onclick = () => { E.cuenta = b.dataset.v; pintarHoja(); });
+      if ($('eHucha')) $('eHucha').onclick = () => { E.hucha = !E.hucha; pintarHoja(); };
+      $('hGuardar').onclick = () => {
+        const n = num(E.importe);
+        if (!(n > 0)) { aviso('Escribe la cantidad'); return; }
+        if (!E.fecha || E.fecha < min || E.fecha > fechaMax()) { aviso('Elige una fecha desde el ' + fechaCorta(min)); return; }
+        if (gasto && E.hucha && n > huchaLibre + 1e-9) { aviso('En la hucha solo hay ' + eur(huchaLibre)); return; }
+        Object.assign(m, { importe: r2(n), desc: E.desc.trim() || (gasto ? E.cat : 'Ingreso extra'), cuenta: E.cuenta, fecha: E.fecha });
+        if (gasto) m.cat = E.cat;
+        if (gasto && E.hucha) m.hucha = true; else delete m.hucha;
+        guardarDatos(); cerrarHoja(); aviso('Cambiado ✓'); pintarApp();
+      };
+      $('hBorrar').onclick = () => borrarMovimiento(m.id, cerrarHoja);
+    }
+  }));
+}
+
+// ---------- 📊 Resumen ----------
+let resTodo = false;   // gasto por categoría: false = este periodo, true = desde el principio
+
+// «Deberías tener» en una cuenta: el saldo que puso + lo que ha entrado − lo que ha salido de esa cuenta desde entonces
+function saldoCuenta(c) {
+  if (c.saldo == null) return null;
+  const h = hoyIso(), desde = c.saldoFecha, ts = c.saldoEn || 0;
+  let s = c.saldo;
+  D.movimientos.forEach(m => {
+    if (m.cuenta !== c.id || m.fecha > h) return;
+    if (m.fecha > desde || (m.fecha === desde && (m.ts || 0) > ts)) s += m.tipo === 'ingreso' ? m.importe : -m.importe;
+  });
+  const diaSig = masDias(desde, 1);
+  if (diaSig <= h) {
+    D.ingresos.forEach(it => { if (it.cuenta === c.id) fechasDe(it, diaSig, h).forEach(f => { const x = D.cambios[clave(it, f)]; if (x && !x.no) s += x.importe; }); });
+    D.fijos.forEach(it => { if (it.cuenta === c.id) fechasDe(it, diaSig, h).forEach(f => { const x = D.cambios[clave(it, f)]; s -= x ? (x.no ? 0 : x.importe) : it.importe; }); });
+  }
+  return r2(s);
+}
+
+function vistaResumen() {
+  const c = calcular(D), h = hoyIso(), mes = D.periodo === 'mes', a = D.ahorro;
+  const pct = c.total > 0 ? Math.min(100, Math.max(0, c.gastado / c.total * 100)) : (c.gastado > 0 ? 100 : 0);
+  const dias = Math.round((aUTC(c.fin) - aUTC(h)) / 864e5) + 1;
+  const porDia = c.queda > 0 ? `Te ${dias === 1 ? 'queda 1 día' : 'quedan ' + dias + ' días'} · unos ${eur(c.queda / dias)} al día` : (c.queda < 0 ? 'Te has pasado ' + eur(-c.queda) : 'No te queda nada para gastar');
+
+  // Ahorros
+  const ahorros = [];
+  if (D.sobrante === 'ahorro') ahorros.push(['💰', 'Ahorrado', c.ahorrado > 0 ? 'Lo que te ha sobrado otras ' + (mes ? 'veces' : 'semanas') : 'Lo que te sobre se irá guardando aquí', eur(c.ahorrado)]);
+  if (c.hucha !== null) {
+    const usado = a.importe - c.hucha;
+    ahorros.push(['🐷', 'Hucha', usado > 0 ? 'Has usado ' + eur(usado) + ' de ' + eur(a.importe) : 'Para imprevistos', eur(c.hucha)]);
+  }
+  if (c.gastarQueda !== null) ahorros.push(['💸', 'Ahorros para gastar', 'Se reparten hasta el ' + fechaCorta(a.hasta) + ' ' + a.hasta.slice(0, 4), eur(c.gastarQueda)]);
+
+  // Deberías tener
+  const saldos = D.cuentas.map(k => ({ k, s: saldoCuenta(k) }));
+  const conSaldo = saldos.filter(x => x.s !== null);
+
+  // Gasto por categoría (lo pagado con la hucha va aparte)
+  // «Desde el principio» llega hasta el final de este periodo: lo apuntado para semanas o meses futuros aún no cuenta
+  const gastos = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && m.fecha <= c.fin && m.fecha >= (resTodo ? fechaMin() : c.ini));
+  const porCat = {};
+  gastos.forEach(m => { porCat[m.cat || 'Otros'] = (porCat[m.cat || 'Otros'] || 0) + m.importe; });
+  const cats = Object.entries(porCat).sort((x, y) => y[1] - x[1]);
+  const totalCat = cats.reduce((t, x) => t + x[1], 0), maxCat = cats.length ? cats[0][1] : 0;
+  const fila = ([ico, tit, sub, cant]) => `<div class="res-fila"><div class="ico">${ico}</div><div class="txt"><b>${tit}</b><span>${sub}</span></div><div class="cant">${cant}</div></div>`;
+
+  return {
+    html: `<div class="cab"><h1>Resumen</h1>${botonAjustes}</div>
+      <div class="tarjeta periodo-res">
+        <div class="hero-etq">${mes ? 'Este mes' : 'Esta semana'} has gastado</div>
+        <div class="grande">${eur(c.gastado)}</div>
+        <div class="sub-res">de ${eur(Math.max(0, c.total))} que tenías ${mes ? 'para el mes' : 'para la semana'}</div>
+        <div class="barrita"><i class="${c.queda < 0 ? 'neg' : ''}" style="width:${pct}%"></i></div>
+        <div class="pie"><span>${porDia}</span></div>
+      </div>
+
+      ${ahorros.length ? `<div class="tarjeta"><div class="tit-tarjeta">Tus ahorros</div>${ahorros.map(fila).join('')}</div>` : ''}
+
+      <div class="tarjeta">
+        <div class="cab-tarjeta"><div class="tit-tarjeta">Deberías tener</div>${conSaldo.length ? '<button class="enlace" id="rSaldos">Ajustar</button>' : ''}</div>
+        ${conSaldo.length ? saldos.map(x => fila([x.k.emoji, esc(x.k.nombre),
+            x.s === null ? 'Sin saldo puesto' : 'Desde el ' + fechaCorta(x.k.saldoFecha), x.s === null ? '—' : `<span class="${x.s < 0 ? 'neg' : ''}">${eur(x.s)}</span>`])).join('')
+          + (conSaldo.length > 1 ? `<div class="res-total"><span>Total</span><span>${eur(conSaldo.reduce((t, x) => t + x.s, 0))}</span></div>` : '')
+          : `<p class="nota" style="margin:0 0 12px">Pon cuánto tienes ahora en ${D.cuentas.length > 1 ? 'cada cuenta' : D.cuentas[0] ? esc(D.cuentas[0].nombre) : 'tu cuenta'} y Pre$u te dirá cuánto deberías tener, para comprobar que no se te olvida apuntar nada.</p>
+             <button class="boton contorno" id="rSaldos">Poner lo que tengo</button>`}
+      </div>
+
+      <div class="tarjeta">
+        <div class="tit-tarjeta">Gasto por categoría</div>
+        ${seg('rCat', [['periodo', mes ? 'Este mes' : 'Esta semana'], ['todo', 'Desde el principio']], resTodo ? 'todo' : 'periodo')}
+        <div style="margin-top:10px">
+        ${cats.length ? cats.map(([k, v]) => `<div class="cat-fila"><div class="arriba-cat"><span>${emojiCat(k)} ${esc(k)}</span><small>${Math.round(v / totalCat * 100)} %</small><b>${eur(v)}</b></div>
+            <div class="barrita"><i style="width:${(v / maxCat * 100).toFixed(1)}%"></i></div></div>`).join('')
+          + `<div class="res-total"><span>Total</span><span>${eur(totalCat)}</span></div>`
+          : `<div class="vacio">${resTodo ? 'Aún no has apuntado gastos.' : 'Aún no has apuntado gastos ' + (mes ? 'este mes.' : 'esta semana.')}</div>`}
+        </div>
+      </div>`,
+    montar() {
+      $('rSaldos').onclick = hojaSaldos;
+      segmento('rCat', v => { resTodo = v === 'todo'; pintarApp(); });
+    }
+  };
+}
+
+// Poner / ajustar lo que hay en cada cuenta
+function hojaSaldos() {
+  const val = {};
+  D.cuentas.forEach(k => { const s = saldoCuenta(k); val[k.id] = s === null ? '' : String(s).replace('.', ','); });
+  const antes = Object.assign({}, val);
+  abrirHoja(() => ({
+    html: `<h2>¿Cuánto tienes ahora?</h2>
+      <p class="ayuda">Mira la app de tu banco (o tu cartera) y pon lo que tienes hoy. Desde aquí, Pre$u suma lo que entra y resta lo que gastas.</p>
+      <div class="tarjeta">${D.cuentas.map(k => `<div class="saldo-fila"><span>${k.emoji} ${esc(k.nombre)}</span>
+        <input data-id="${k.id}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(val[k.id])}"></div>`).join('')}</div>
+      <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      document.querySelectorAll('.saldo-fila input').forEach(i => i.oninput = () => { val[i.dataset.id] = i.value; });
+      const primero = document.querySelector('.saldo-fila input');
+      if (primero && !primero.value) setTimeout(() => primero.focus(), 300);
+      $('hGuardar').onclick = () => {
+        for (const k of D.cuentas) {
+          const t = String(val[k.id]).trim();
+          if (t === antes[k.id]) continue;          // no lo ha tocado
+          if (!t) { delete k.saldo; delete k.saldoFecha; delete k.saldoEn; continue; }
+          const n = num(t);
+          if (isNaN(n)) { aviso('Revisa la cantidad de ' + k.nombre); return; }
+          Object.assign(k, { saldo: r2(n), saldoFecha: hoyIso(), saldoEn: Date.now() });
+        }
+        guardarDatos(); cerrarHoja(); aviso('Guardado ✓'); pintarApp();
+      };
+    }
+  }));
+}
+
+// ---------- ⚙️ Ajustes ----------
+const activo = it => !it.hasta || it.hasta >= hoyIso();
+const descFijo = it => eur(it.importe) + (it.frec === 'mes' ? ' al mes · día ' + it.dia : ' a la semana · ' + DIAS_NOMBRE[it.dia])
+  + (D.cuentas.length > 1 ? ' · ' + nombreCta(it.cuenta) : '');
+
+function vistaAjustes() {
+  const h = hoyIso(), mes = D.periodo === 'mes', a = D.ahorro, c = calcular(D);
+  const fila = (it, t) => `<div class="mov" data-t="${t}" data-id="${it.id}"><div class="ico">${it.emoji}</div>
+    <div class="txt"><b>${esc(it.nombre)}</b><span>${esc(descFijo(it))}</span></div><div class="ir">›</div></div>`;
+  const ingresos = D.ingresos.filter(activo), fijos = D.fijos.filter(activo);
+  const descAhorro = !a ? 'No tienes ahorros puestos'
+    : a.modo === 'hucha' ? 'En la hucha · te quedan ' + eur(c.hucha)
+    : 'Para gastar · ' + eur(r2(c.deAhorros + c.gastarQueda)) + ' hasta el ' + fechaCorta(a.hasta);
+  return {
+    html: `<div class="cab"><div class="cab-izq"><button class="atras" id="bVolver" aria-label="Volver">${FLECHA}</button><h1>Ajustes</h1></div></div>
+
+      <div class="tarjeta"><div class="ajuste-fila"><span>🙂 Tu nombre</span><input id="jNombre" type="text" maxlength="30" value="${esc(D.nombre)}" enterkeyhint="done"></div></div>
+
+      <div class="tarjeta">
+        <div class="etq">¿Cómo quieres ver tu dinero?</div>
+        ${seg('jPeriodo', [['semana', 'Por semanas'], ['mes', 'Por meses']], D.periodo)}
+        <div class="etq">Si te sobra dinero…</div>
+        ${seg('jSobra', [['ahorro', 'Al ahorro'], ['siguiente', mes ? 'Al mes siguiente' : 'A la siguiente']], D.sobrante)}
+      </div>
+
+      <div class="sec-tit">Ingresos fijos</div>
+      <div class="tarjeta lista" id="jIngresos">${ingresos.map(it => fila(it, 'ingreso')).join('')}<button class="anadir" id="jAddIng">＋ Añadir ingreso</button></div>
+
+      <div class="sec-tit">Gastos fijos</div>
+      <div class="tarjeta lista" id="jFijos">${fijos.map(it => fila(it, 'fijo')).join('')}<button class="anadir" id="jAddFijo">＋ Añadir gasto fijo</button></div>
+      <p class="nota" style="margin:8px 6px 0">Si cambias una cantidad, cuenta desde hoy: lo de antes no cambia. Para cambiarlo solo una vez, hazlo desde Movimientos.</p>
+
+      <div class="sec-tit">Ahorros</div>
+      <div class="tarjeta lista"><div class="mov" id="jAhorro"><div class="ico">${!a ? '🙅' : a.modo === 'hucha' ? '🐷' : '💸'}</div>
+        <div class="txt"><b>Ahorros que tenías al empezar</b><span>${esc(descAhorro)}</span></div><div class="ir">›</div></div></div>
+
+      <div class="sec-tit">Cuentas</div>
+      <div class="tarjeta lista" id="jCuentas">${D.cuentas.map(k => `<div class="mov" data-id="${k.id}"><div class="ico">${k.emoji}</div>
+        <div class="txt"><b>${esc(k.nombre)}</b>${k.saldo != null ? `<span>Saldo puesto el ${fechaCorta(k.saldoFecha)}</span>` : ''}</div><div class="ir">›</div></div>`).join('')}
+        <button class="anadir" id="jAddCta">＋ Añadir cuenta</button></div>
+      <p class="nota" style="margin:8px 6px 0">Lo que tienes en cada cuenta se pone en Resumen → Deberías tener.</p>
+
+      <div class="sec-tit">Categorías</div>
+      <div class="tarjeta"><div class="chips" id="jCats">${D.categorias.map(k => `<button class="chip" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}<span class="x">✕</span></button>`).join('')}</div>
+        <div class="fila-anadir"><input id="jNuevaCat" class="texto campo" type="text" maxlength="20" placeholder="Nueva categoría" enterkeyhint="done"><button class="mini-b" id="jAddCat">Añadir</button></div></div>
+
+      <div class="sec-tit">Zona peligrosa</div>
+      <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
+      <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>`,
+    montar() {
+      $('bVolver').onclick = () => irA('inicio');
+      $('jNombre').oninput = e => { if (e.target.value.trim()) { D.nombre = e.target.value.trim(); guardarDatos(); } };
+      $('jNombre').onblur = e => { if (!e.target.value.trim()) e.target.value = D.nombre; };
+      segmento('jPeriodo', v => { if (v !== D.periodo) cambiarPeriodo(v); });
+      segmento('jSobra', v => {
+        if (v === D.sobrante) return;
+        const act = inicioPeriodo(hoyIso(), D.periodo);
+        D.sobranteHist = (D.sobranteHist || [{ desde: '0000-00-00', valor: D.sobrante }]).filter(x => x.desde < act).concat([{ desde: act, valor: v }]);
+        D.sobrante = v; guardarDatos(); aviso('Cambiado desde ' + (mes ? 'este mes' : 'esta semana')); pintarApp();
+      });
+      document.querySelectorAll('#jIngresos .mov, #jFijos .mov').forEach(el => el.onclick = () =>
+        hojaItem(el.dataset.t, (el.dataset.t === 'ingreso' ? D.ingresos : D.fijos).find(x => x.id === el.dataset.id)));
+      $('jAddIng').onclick = () => hojaItem('ingreso', null);
+      $('jAddFijo').onclick = () => hojaItem('fijo', null);
+      $('jAhorro').onclick = hojaAhorro;
+      document.querySelectorAll('#jCuentas .mov').forEach(el => el.onclick = () => hojaCuenta(D.cuentas.find(k => k.id === el.dataset.id)));
+      $('jAddCta').onclick = () => hojaCuenta(null);
+      document.querySelectorAll('#jCats .chip').forEach(b => b.onclick = () => {
+        if (D.categorias.length < 2) return aviso('Tiene que quedar al menos una');
+        if (!confirm('¿Quitar la categoría «' + b.dataset.v + '»? Lo que ya apuntaste se queda igual.')) return;
+        D.categorias = D.categorias.filter(k => k !== b.dataset.v); guardarDatos(); pintarApp();
+      });
+      const addCat = () => {
+        const n = $('jNuevaCat').value.trim();
+        if (!n) return aviso('Escribe el nombre');
+        if (D.categorias.some(k => k.toLowerCase() === n.toLowerCase())) return aviso('Ya la tienes');
+        D.categorias.splice(Math.max(0, D.categorias.indexOf('Otros') < 0 ? D.categorias.length : D.categorias.indexOf('Otros')), 0, n);
+        guardarDatos(); aviso('Añadida ✓'); pintarApp();
+      };
+      $('jAddCat').onclick = addCat;
+      $('jNuevaCat').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCat(); } };
+      $('bBorrar').onclick = () => {
+        if (!confirm('¿Seguro? Se borrará todo lo que tienes en Pre$u y volverás a empezar.')) return;
+        localStorage.removeItem('presu'); localStorage.removeItem('presu_borrador');
+        D = null; F = null; vista = 'inicio'; B = VACIO(); direccion = 1;
+        pintar(); window.scrollTo(0, 0);
+      };
+    }
+  };
+}
+
+// Pasar de semanas a meses (o al revés): se recalcula todo con el nuevo periodo
+function cambiarPeriodo(v) {
+  if (!confirm(v === 'mes' ? '¿Ver tu dinero por meses? Se recalcula todo por meses.' : '¿Ver tu dinero por semanas? Se recalcula todo por semanas (lo mensual se reparte entre las semanas).')) return pintarApp();
+  // Los ahorros para gastar: se vuelve a repartir el total hasta la misma fecha
+  if (D.ahorro && D.ahorro.modo === 'gastar') {
+    const P = D.periodo, t = tramosAhorro(D);
+    D.ahorro.importe = r2(t.reduce((s, x) => s + x.cuota * contarPeriodos(x.desde, x.ultimo, P), 0));
+    delete D.repartoAhorro;
+  }
+  D.periodo = v; movIni = null; guardarDatos();
+  aviso(v === 'mes' ? 'Ahora lo ves por meses' : 'Ahora lo ves por semanas'); pintarApp();
+}
+
+// Guardar un ingreso o gasto fijo: si cambia algo que afecta a las cuentas, la versión vieja acaba ayer y la nueva empieza hoy
+function guardarItem(lista, orig, nuevo) {
+  const h = hoyIso();
+  if (!orig) { lista.push(Object.assign({ id: nuevoId(), desde: h }, nuevo)); return; }
+  const cambia = ['importe', 'frec', 'dia', 'cuenta'].some(k => orig[k] !== nuevo[k]);
+  if (!cambia || orig.desde === h) { Object.assign(orig, nuevo); return; }
+  const nueva = Object.assign({}, orig, nuevo, { id: nuevoId(), desde: h });
+  delete nueva.hasta;
+  orig.hasta = masDias(h, -1); orig.nombre = nuevo.nombre;
+  // Lo ya contestado para hoy o más adelante pasa a la versión nueva
+  Object.keys(D.cambios).forEach(k => { const [id, f] = k.split('|'); if (id === orig.id && f >= h) { D.cambios[nueva.id + '|' + f] = D.cambios[k]; delete D.cambios[k]; } });
+  lista.splice(lista.indexOf(orig) + 1, 0, nueva);
+}
+function quitarItem(lista, orig) {
+  const h = hoyIso();
+  Object.keys(D.cambios).forEach(k => { const [id, f] = k.split('|'); if (id === orig.id && f >= h) delete D.cambios[k]; });
+  if (orig.desde === h) lista.splice(lista.indexOf(orig), 1);   // creado hoy: se quita del todo
+  else orig.hasta = masDias(h, -1);                              // lo de antes se queda como estaba
+}
+
+function hojaItem(tipo, orig) {
+  const ing = tipo === 'ingreso', lista = ing ? D.ingresos : D.fijos;
+  const E = orig ? { nombre: orig.nombre, importe: fmtImporte(orig.importe), frec: orig.frec, dia: orig.dia || 1, cuenta: cuentaApp(orig.cuenta) }
+    : { nombre: '', importe: '', frec: 'mes', dia: 1, cuenta: cuentaApp(D.ultimaCuenta) };
+  abrirHoja(() => ({
+    html: `<h2>${orig ? orig.emoji + ' ' + esc(orig.nombre) : ing ? '✨ Nuevo ingreso' : '📌 Nuevo gasto fijo'}</h2>
+      <p class="ayuda">${orig ? 'Si cambias la cantidad, el día o la cuenta, cuenta desde hoy. Lo de antes no cambia.' : 'Se ' + (ing ? 'sumará' : 'restará') + ' solo cada vez que toque, desde hoy.'}</p>
+      <div class="tarjeta">
+        <input id="iNom" class="texto campo" type="text" maxlength="30" placeholder="${ing ? 'Nombre (ej: beca)' : 'Nombre (ej: gimnasio)'}" value="${esc(E.nombre)}">
+        <input id="iImp" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.importe)}" style="margin-top:8px">
+        <div class="etq">¿Cada cuánto?</div>
+        ${seg('iFrec', [['semana', 'Cada semana'], ['mes', 'Cada mes']], E.frec)}
+        ${E.frec === 'semana'
+          ? `<div class="etq">¿Qué día?</div><div class="dias" id="iDias">${DIAS_SEM.map((d, k) => `<button data-v="${k + 1}" class="${E.dia === k + 1 ? 'on' : ''}">${d}</button>`).join('')}</div>`
+          : `<div class="etq">¿Qué día del mes?</div><div class="paso-dia"><span>Día</span><div class="ctrl"><button id="dMenos" aria-label="Un día menos">−</button><b id="dDia">${E.dia}</b><button id="dMas" aria-label="Un día más">+</button></div></div>
+             <div class="nota">Si el mes es más corto, cuenta el último día.</div>`}
+        ${D.cuentas.length > 1 ? `<div class="etq">${ing ? '¿Dónde te llega?' : '¿Desde qué cuenta lo pagas?'}</div><div class="chips" id="iCtas">${D.cuentas.map(k =>
+          `<button class="chip ${E.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}
+      </div>
+      <div class="botones-hoja">
+        <button class="boton" id="hGuardar">${orig ? 'Guardar cambios' : 'Añadir'}</button>
+        ${orig ? `<button class="boton rojo-txt" id="hQuitar">${ing ? 'Ya no lo recibo' : 'Ya no lo pago'}</button>` : ''}
+        <button class="boton sec" id="hCancelar">Cancelar</button>
+      </div>`,
+    montar() {
+      $('iNom').oninput = e => { E.nombre = e.target.value; };
+      $('iImp').oninput = e => { E.importe = e.target.value; };
+      segmento('iFrec', v => { if (v !== E.frec) { E.frec = v; E.dia = 1; pintarHoja(); } });
+      document.querySelectorAll('#iDias button').forEach(b => b.onclick = () => { E.dia = +b.dataset.v; pintarHoja(); });
+      if ($('dMas')) { const mover = n => { E.dia = ((E.dia - 1 + n + 31) % 31) + 1; $('dDia').textContent = E.dia; }; $('dMas').onclick = () => mover(1); $('dMenos').onclick = () => mover(-1); }
+      document.querySelectorAll('#iCtas .chip').forEach(b => b.onclick = () => { E.cuenta = b.dataset.v; pintarHoja(); });
+      if (!orig) setTimeout(() => $('iNom') && $('iNom').focus(), 300);
+      $('hGuardar').onclick = () => {
+        const n = num(E.importe);
+        if (!E.nombre.trim()) return aviso('Ponle un nombre');
+        if (!(n > 0)) return aviso('Escribe la cantidad');
+        const nuevo = { nombre: E.nombre.trim(), importe: r2(n), frec: E.frec, dia: E.dia, cuenta: E.cuenta };
+        if (!orig) Object.assign(nuevo, ing ? { tipo: 'otro', emoji: '✨' } : { emoji: '📌' });
+        guardarItem(lista, orig, nuevo);
+        guardarDatos(); cerrarHoja(); aviso(orig ? 'Guardado ✓' : 'Añadido ✓'); pintarApp();
+      };
+      if ($('hQuitar')) $('hQuitar').onclick = () => {
+        if (!confirm('¿Quitar «' + orig.nombre + '»? Lo de antes se queda como estaba.')) return;
+        quitarItem(lista, orig); guardarDatos(); cerrarHoja(); aviso('Quitado'); pintarApp();
+      };
+    }
+  }));
+}
+
+function hojaAhorro() {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), a = D.ahorro;
+  const E = { modo: a ? a.modo : 'nada', cuenta: cuentaApp(a && a.cuenta),
+    importe: !a ? '' : fmtImporte(a.modo === 'hucha' ? c.hucha : r2(c.deAhorros + c.gastarQueda)), hasta: a && a.hasta && a.hasta > h ? a.hasta : '' };
+  abrirHoja(() => ({
+    html: `<h2>🐷 Ahorros</h2>
+      <p class="ayuda">El dinero que tienes guardado. Lo que cambies cuenta desde ${P === 'mes' ? 'este mes' : 'esta semana'}.</p>
+      ${seg('aModo', [['nada', 'No tengo'], ['gastar', '💸 Para gastar'], ['hucha', '🐷 Hucha']], E.modo)}
+      ${E.modo === 'nada' ? '' : `<div class="tarjeta" style="margin-top:14px">
+        <div class="etq" style="margin-top:0;text-align:center">${E.modo === 'hucha' ? '¿Cuánto hay en la hucha?' : '¿Cuánto te queda para repartir?'}</div>
+        <input id="aImpA" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.importe)}">
+        ${E.modo === 'gastar' ? `<div class="etq">¿Hasta cuándo quieres que te dure?</div>
+          <input id="aHasta" class="texto campo" type="date" min="${masDias(h, 1)}" value="${E.hasta}">` : `<div class="nota" style="text-align:center">No cuenta para gastar. Si hay un imprevisto, al apuntar un gasto podrás pagar con la hucha.</div>`}
+        ${D.cuentas.length > 1 ? `<div class="etq">¿Dónde lo tienes?</div><div class="chips" id="aCtas">${D.cuentas.map(k =>
+          `<button class="chip ${E.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}
+      </div>`}
+      <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      segmento('aModo', v => { if (v !== E.modo) { E.modo = v; E.importe = ''; pintarHoja(); } });
+      if ($('aImpA')) $('aImpA').oninput = e => { E.importe = e.target.value; };
+      if ($('aHasta')) $('aHasta').onchange = e => { E.hasta = e.target.value; };
+      document.querySelectorAll('#aCtas .chip').forEach(b => b.onclick = () => { E.cuenta = b.dataset.v; pintarHoja(); });
+      $('hGuardar').onclick = () => {
+        const n = num(E.importe);
+        if (E.modo !== 'nada' && !(n >= 0)) return aviso('Escribe la cantidad');
+        if (E.modo === 'gastar' && !(E.hasta > h)) return aviso('Elige hasta cuándo (una fecha futura)');
+        // Lo ya repartido en periodos anteriores se queda igual; lo nuevo empieza en este periodo
+        const ant = periodoAnterior(act, P);
+        const tramos = tramosAhorro(D).map(t => Object.assign({}, t, { ultimo: t.ultimo < act ? t.ultimo : ant })).filter(t => t.ultimo >= t.desde);
+        if (E.modo === 'gastar') {
+          const ultimo = inicioPeriodo(E.hasta, P);
+          tramos.push({ desde: act, ultimo, cuota: r2(n) / contarPeriodos(act, ultimo, P) });
+        }
+        D.repartoAhorro = tramos;
+        if (E.modo === 'nada') D.ahorro = null;
+        else if (E.modo === 'hucha') {
+          const usado = D.movimientos.filter(m => m.hucha).reduce((s, m) => s + m.importe, 0);
+          D.ahorro = { importe: r2(n + usado), modo: 'hucha', hasta: '', cuenta: E.cuenta };   // así te quedan justo los n €
+        } else D.ahorro = { importe: r2(n), modo: 'gastar', hasta: E.hasta, cuenta: E.cuenta };
+        guardarDatos(); cerrarHoja(); aviso('Guardado ✓'); pintarApp();
+      };
+    }
+  }));
+}
+
+function hojaCuenta(k) {
+  let nombre = k ? k.nombre : '';
+  abrirHoja(() => ({
+    html: `<h2>${k ? k.emoji + ' ' + esc(k.nombre) : '🏦 Nueva cuenta'}</h2>
+      <p class="ayuda">${k ? 'Cámbiale el nombre o quítala.' : 'Un banco, una tarjeta o efectivo.'}</p>
+      <div class="tarjeta"><input id="cNom" class="texto campo" type="text" maxlength="24" placeholder="Nombre (ej: Revolut, Efectivo)" value="${esc(nombre)}" enterkeyhint="done">
+        ${k ? '' : `<div class="chips" id="cRap" style="margin-top:12px">${['Revolut', 'BBVA', 'Santander', 'CaixaBank', 'ING', 'Efectivo'].filter(n => !D.cuentas.some(c => c.nombre.toLowerCase() === n.toLowerCase()))
+          .map(n => `<button class="chip" data-v="${n}">${emojiCuenta(n)} ${n}</button>`).join('')}</div>`}</div>
+      <div class="botones-hoja"><button class="boton" id="hGuardar">${k ? 'Guardar' : 'Añadir'}</button>
+        ${k && D.cuentas.length > 1 ? '<button class="boton rojo-txt" id="hQuitar">Quitar cuenta</button>' : ''}
+        <button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      $('cNom').oninput = e => { nombre = e.target.value; };
+      document.querySelectorAll('#cRap .chip').forEach(b => b.onclick = () => { nombre = b.dataset.v; $('cNom').value = nombre; });
+      if (!k) setTimeout(() => $('cNom') && $('cNom').focus(), 300);
+      $('hGuardar').onclick = () => {
+        const n = nombre.trim();
+        if (!n) return aviso('Ponle un nombre');
+        if (D.cuentas.some(c => c !== k && c.nombre.toLowerCase() === n.toLowerCase())) return aviso('Ya tienes una cuenta con ese nombre');
+        if (k) Object.assign(k, { nombre: n, emoji: emojiCuenta(n) });
+        else D.cuentas.push({ id: nuevoId(), nombre: n, emoji: emojiCuenta(n) });
+        guardarDatos(); cerrarHoja(); aviso(k ? 'Guardado ✓' : 'Cuenta añadida ✓'); pintarApp();
+      };
+      if ($('hQuitar')) $('hQuitar').onclick = () => {
+        const otra = D.cuentas.find(c => c !== k);
+        if (!confirm('¿Quitar «' + k.nombre + '»? Lo que estaba en ella pasará a «' + otra.nombre + '».')) return;
+        [...D.ingresos, ...D.fijos, ...D.movimientos].forEach(x => { if (x.cuenta === k.id) x.cuenta = otra.id; });
+        if (D.ahorro && D.ahorro.cuenta === k.id) D.ahorro.cuenta = otra.id;
+        if (D.ultimaCuenta === k.id) D.ultimaCuenta = otra.id;
+        D.cuentas = D.cuentas.filter(c => c !== k);
+        guardarDatos(); cerrarHoja(); aviso('Cuenta quitada'); pintarApp();
+      };
+    }
+  }));
+}
+
+pintar();
+
+// Para que se pueda instalar y abra sin internet (solo funciona en un servidor, como GitHub Pages o el simulador)
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
