@@ -292,6 +292,29 @@ input[type=date].texto{min-height:52px}
 .hoja .dias button{background:var(--campo)}
 .hoja .dias button.on{background:var(--acento);color:var(--acento-txt)}
 .hoja .paso-dia button{background:var(--card)}
+
+/* ===== Apple Pay ===== */
+.applepay{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px}
+.applepay .txt{flex:1;min-width:0}
+.applepay .txt b{display:block;font-size:15.5px;font-weight:650}
+.applepay .txt span{display:block;color:var(--sub);font-size:13px;margin-top:1px}
+.applepay .mini-b{flex:none;padding:10px 16px}
+.pago{background:var(--card);border-radius:18px;padding:14px 14px 12px;margin-bottom:10px;box-shadow:var(--sombra);transition:opacity .2s}
+.pago.fuera{opacity:.45}
+.pago .arriba-pago{display:flex;align-items:center;gap:10px}
+.pago .arriba-pago .txt{flex:1;min-width:0}
+.pago .arriba-pago b{display:block;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pago .arriba-pago span{display:block;color:var(--sub);font-size:13px;margin-top:1px}
+.pago .arriba-pago .cant{font-weight:750;font-size:17px;white-space:nowrap}
+.pago .quitar-pago{border:0;background:var(--campo);color:var(--sub);width:30px;height:30px;border-radius:50%;font-size:13px;flex:none}
+.pago .fila-chips{display:flex;gap:6px;overflow-x:auto;margin:10px -14px 0;padding:2px 14px;scrollbar-width:none}
+.pago .fila-chips::-webkit-scrollbar{display:none}
+.pago .fila-chips .chip{flex:none;font-size:13.5px;padding:7px 11px;white-space:nowrap;background:var(--campo);box-shadow:none}
+.pago .fila-chips .chip.on{background:var(--acento);color:var(--acento-txt)}
+.hoja textarea{display:block;width:100%;min-height:110px;border:0;border-radius:14px;background:var(--card);box-shadow:var(--sombra);padding:12px 14px;font:inherit;font-size:15px;color:inherit;outline:none;resize:vertical}
+.guia ol{margin:0;padding-left:22px;font-size:15px;line-height:1.5}
+.guia li{margin-bottom:9px}
+.guia code{background:var(--campo);border-radius:6px;padding:1px 6px;font-size:13.5px;word-break:break-all}
 </style>
 </head>
 <body>
@@ -1007,6 +1030,9 @@ function vistaInicio() {
   const html = `
     <div class="cab"><div class="cab-izq">${LOGO}<div><div class="cab-hola">Hola, ${esc(D.nombre)}</div>
       <div class="cab-sub">${mayus(DIAS_NOMBRE[diaSemana(h)])}, ${+h.slice(8)} de ${MESES_L[+h.slice(5, 7) - 1]}</div></div></div>${botonAjustes}</div>
+    ${D.applePay ? `<div class="tarjeta applepay"><div class="ico" style="font-size:24px">📲</div>
+      <div class="txt"><b>Pagos de Apple Pay</b><span>Trae lo que has pagado con el iPhone</span></div>
+      <button class="mini-b si" id="bApplePay">Traer</button></div>` : ''}
     ${pregunta}
     <div class="tarjeta hero">
       <div class="hero-etq">Te queda ${mes ? 'este mes' : 'esta semana'}</div>
@@ -1037,6 +1063,7 @@ function vistaInicio() {
   return {
     html,
     montar() {
+      if ($('bApplePay')) $('bApplePay').onclick = traerApplePay;
       if (p) {
         const k = clave(p.item, p.fecha);
         const responder = (v, t) => { D.cambios[k] = v; guardarDatos(); otraCantidad = false; aviso(t); pintarApp(); };
@@ -1115,6 +1142,152 @@ document.addEventListener('keydown', e => {
   else if (e.target.closest('.hoja')) { e.preventDefault(); if ($('hGuardar')) $('hGuardar').click(); }
   else if (e.target.closest('#fApuntar')) { e.preventDefault(); guardarMovimiento(); }
 });
+
+// ---------- 📲 Pagos de Apple Pay ----------
+// La automatización de Atajos guarda cada pago como una línea:  PRESU|fecha|importe|comercio|tarjeta
+// y copia la lista entera al portapapeles. Aquí se lee, se quitan los ya añadidos y se revisan antes de añadir.
+const MESES_TXT = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, set: 9, oct: 10, nov: 11, dic: 12,
+  jan: 1, apr: 4, aug: 8, dec: 12 };
+function fechaDeTexto(t) {
+  t = String(t || '').trim().toLowerCase();
+  let m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (m) return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  m = t.match(/(\d{1,2})\s+(?:de\s+)?([a-zé]{3})[a-zé]*\.?\s+(?:de\s+)?(\d{4})/);
+  if (m && MESES_TXT[m[2]]) return m[3] + '-' + String(MESES_TXT[m[2]]).padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  return hoyIso();
+}
+const importeDeTexto = t => { const m = String(t || '').replace(/\s/g, '').match(/-?[\d.,]+/); return m ? Math.abs(num(m[0])) : NaN; };
+// Categoría que se propone según el nombre del comercio
+const PISTAS = [
+  ['Súper', /mercadona|lidl|carrefour|\bdia\b|aldi|eroski|consum|alcampo|hipercor|caprabo|bonpreu|condis|ahorramas|super|supermerc|bon area|bonarea/],
+  ['Comer fuera', /bar\b|rest|burger|mcdonald|kfc|telepizza|domino|pizza|glovo|just ?eat|uber ?eats|caf[eé]|starbucks|montaditos|kebab|sushi|taco|vips|foster|goiko|tgb|granier|panader/],
+  ['Transporte', /renfe|metro|\bbus\b|uber|cabify|bolt|repsol|cepsa|bp\b|galp|shell|gasolin|tmb|emt|alsa|fgc|parking|taxi|bicing/],
+  ['Ropa', /zara|bershka|pull|primark|h&m|h & m|mango|stradivarius|shein|lefties|decathlon|nike|adidas|jd sports|springfield|massimo/],
+  ['Fiesta', /discoteca|disco|\bpub\b|club|cocktail|copas|razzmatazz|apolo|opium/],
+  ['Ocio', /cine|yelmo|cinesa|kinépolis|steam|playstation|xbox|nintendo|ticketmaster|entradas|fnac|bowling|museo|teatro/],
+  ['Viajes', /ryanair|vueling|iberia|easyjet|booking|airbnb|hotel|hostel|aeropuerto|aena/]
+];
+function categoriaPara(comercio) {
+  const k = comercio.trim().toLowerCase(), rec = (D.comercios || {})[k];
+  if (rec && D.categorias.includes(rec.cat)) return rec.cat;
+  const p = PISTAS.find(([c, re]) => D.categorias.includes(c) && re.test(k));
+  return p ? p[0] : D.categorias.includes('Otros') ? 'Otros' : D.categorias[D.categorias.length - 1];
+}
+function cuentaPara(comercio, tarjeta) {
+  // 1) la tarjeta con la que se pagó, si se llama como una cuenta; 2) la de la última vez en ese comercio; 3) la última usada
+  const t = String(tarjeta || '').toLowerCase();
+  const porNombre = t && D.cuentas.find(c => t.includes(c.nombre.toLowerCase()) || c.nombre.toLowerCase().includes(t));
+  if (porNombre) return porNombre.id;
+  const rec = (D.comercios || {})[comercio.trim().toLowerCase()];
+  if (rec && D.cuentas.some(c => c.id === rec.cuenta)) return rec.cuenta;
+  return cuentaApp(D.ultimaCuenta);
+}
+function leerPagos(texto) {
+  const vistos = new Set(D.importados || []), r = [], min = fechaMin(), h = hoyIso();
+  // Separador: «;» (fácil de escribir en el iPhone) o «|»
+  String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^PRESU\s*[|;]/i.test(l)).forEach(l => {
+    const sep = l.match(/^PRESU\s*([|;])/i)[1];
+    const [, f, imp, com, tarjeta] = l.split(sep).map(x => (x || '').trim());
+    const id = l.replace(/\s+/g, ' ');
+    const importe = importeDeTexto(imp), fecha = fechaDeTexto(f);
+    if (vistos.has(id) || !(importe > 0) || fecha < min || fecha > h) return;
+    vistos.add(id);
+    const comercio = com || 'Apple Pay';
+    r.push({ id, fecha, importe: r2(importe), comercio, cat: categoriaPara(comercio), cuenta: cuentaPara(comercio, tarjeta), si: true });
+  });
+  return r.sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+}
+
+async function traerApplePay() {
+  let texto = null;
+  try { texto = await navigator.clipboard.readText(); } catch (e) { texto = null; }
+  if (texto === null) return hojaPegar();          // el navegador no deja leer: se pega a mano
+  const pagos = leerPagos(texto);
+  if (!pagos.length) return aviso(/PRESU\s*[|;]/i.test(texto) ? 'No hay pagos nuevos ✓' : 'No hay pagos de Apple Pay copiados');
+  hojaPagos(pagos);
+}
+function hojaPegar() {
+  abrirHoja(() => ({
+    html: `<h2>📲 Pegar pagos</h2>
+      <p class="ayuda">Mantén pulsado el recuadro y pulsa <b>Pegar</b>.</p>
+      <textarea id="tPegar" placeholder="PRESU;…"></textarea>
+      <div class="botones-hoja"><button class="boton" id="hGuardar">Continuar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      setTimeout(() => $('tPegar') && $('tPegar').focus(), 300);
+      $('hGuardar').onclick = () => {
+        const pagos = leerPagos($('tPegar').value);
+        if (!pagos.length) return aviso('No hay pagos nuevos');
+        hojaPagos(pagos);
+      };
+    }
+  }));
+}
+function hojaPagos(pagos) {
+  const varias = D.cuentas.length > 1;
+  abrirHoja(() => {
+    const n = pagos.filter(x => x.si).length, fuera = pagos.length - n;
+    return {
+      html: `<h2>📲 ${pagos.length === 1 ? 'Tienes 1 pago' : 'Tienes ' + pagos.length + ' pagos'} de Apple Pay</h2>
+        <p class="ayuda">Revisa la categoría${varias ? ' y la cuenta' : ''}. Toca ✕ en los que no quieras apuntar.</p>
+        ${pagos.map((x, i) => `<div class="pago ${x.si ? '' : 'fuera'}">
+          <div class="arriba-pago"><div class="txt"><b>${esc(x.comercio)}</b><span>${textoFecha(x.fecha)}</span></div>
+            <div class="cant">−${eur(x.importe)}</div><button class="quitar-pago" data-i="${i}" aria-label="${x.si ? 'No apuntar' : 'Sí apuntar'}">${x.si ? '✕' : '↺'}</button></div>
+          ${x.si ? `<div class="fila-chips" data-i="${i}" data-t="cat">${D.categorias.map(k => `<button class="chip ${x.cat === k ? 'on' : ''}" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}</button>`).join('')}</div>
+          ${varias ? `<div class="fila-chips" data-i="${i}" data-t="cuenta">${D.cuentas.map(k => `<button class="chip ${x.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}` : ''}
+        </div>`).join('')}
+        <div class="botones-hoja">
+          <button class="boton" id="hGuardar">${n ? (n === 1 ? 'Añadir 1 gasto' : 'Añadir ' + n + ' gastos') : 'No añadir ninguno'}${fuera ? ' · descartar ' + fuera : ''}</button>
+          <button class="boton sec" id="hCancelar">Ahora no</button>
+        </div>`,
+      montar() {
+        // que se vea la categoría elegida en las filas que se deslizan
+        document.querySelectorAll('.pago .fila-chips .chip.on').forEach(c => c.parentElement.scrollLeft = Math.max(0, c.offsetLeft - 60));
+        document.querySelectorAll('.quitar-pago').forEach(b => b.onclick = () => { const x = pagos[+b.dataset.i]; x.si = !x.si; pintarHoja(); });
+        document.querySelectorAll('.pago .fila-chips').forEach(fila => fila.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+          const x = pagos[+fila.dataset.i]; x[fila.dataset.t] = c.dataset.v;
+          fila.querySelectorAll('.chip').forEach(o => o.classList.toggle('on', o === c));
+        }));
+        $('hGuardar').onclick = () => {
+          D.comercios = D.comercios || {};
+          D.importados = D.importados || [];
+          let añadidos = 0;
+          pagos.forEach(x => {
+            D.importados.push(x.id);
+            if (!x.si) return;
+            D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: x.importe, desc: x.comercio, cat: x.cat, cuenta: x.cuenta, fecha: x.fecha, ts: Date.now(), origen: 'applepay' });
+            D.comercios[x.comercio.trim().toLowerCase()] = { cat: x.cat, cuenta: x.cuenta };   // la próxima vez saldrá igual
+            D.ultimaCuenta = x.cuenta; añadidos++;
+          });
+          D.importados = D.importados.slice(-500);
+          guardarDatos(); cerrarHoja();
+          aviso(añadidos ? (añadidos === 1 ? '1 gasto añadido ✓' : añadidos + ' gastos añadidos ✓') : 'Vale, no se añade nada');
+          pintarApp();
+        };
+      }
+    };
+  });
+}
+
+// Guía para configurar la automatización en el iPhone
+function hojaGuiaApplePay() {
+  abrirHoja(() => ({
+    html: `<h2>📲 Configurar Apple Pay</h2>
+      <p class="ayuda">Se hace una sola vez, en la app <b>Atajos</b> del iPhone (iOS 17 o más nuevo).</p>
+      <div class="tarjeta guia"><ol>
+        <li>Abre <b>Atajos</b> → pestaña <b>Automatización</b> → <b>＋</b>.</li>
+        <li>Elige <b>Transacción</b>, deja marcadas tus tarjetas y activa <b>Ejecutar inmediatamente</b>. Pulsa <b>Siguiente</b> → <b>Nueva automatización en blanco</b>.</li>
+        <li>Añade la acción <b>Texto</b> y escribe <code>PRESU;</code>, luego la variable <b>Fecha actual</b>, <code>;</code>, <b>Importe</b>, <code>;</code>, <b>Comercio</b>, <code>;</code>, <b>Tarjeta</b> (el <code>;</code> está en el teclado <b>123</b>).</li>
+        <li>Añade <b>Añadir al archivo de texto</b>: que añada el <b>Texto</b> al archivo <code>Presu.txt</code> (carpeta Atajos), con <b>Nueva línea</b> activado.</li>
+        <li>Añade <b>Obtener archivo</b> → <code>Presu.txt</code> de la carpeta Atajos.</li>
+        <li>Añade <b>Obtener texto de la entrada</b> (del archivo) y después <b>Copiar al portapapeles</b> (ese texto).</li>
+        <li>Añade <b>Mostrar notificación</b>: <code>💸 Importe en Comercio · guardado para Pre$u</code>.</li>
+        <li>Pulsa <b>OK</b>. ¡Listo! Paga con Apple Pay, abre Pre$u y pulsa <b>Traer</b>.</li>
+      </ol></div>
+      <div class="botones-hoja"><button class="boton" id="hCancelar">Entendido</button></div>`
+  }));
+}
 
 // ---------- 📋 Movimientos ----------
 let movIni = null;   // periodo que se está viendo en Movimientos (null = el actual)
@@ -1499,6 +1672,13 @@ function vistaAjustes() {
       <div class="tarjeta"><div class="chips" id="jCats">${D.categorias.map(k => `<button class="chip" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}<span class="x">✕</span></button>`).join('')}</div>
         <div class="fila-anadir"><input id="jNuevaCat" class="texto campo" type="text" maxlength="20" placeholder="Nueva categoría" enterkeyhint="done"><button class="mini-b" id="jAddCat">Añadir</button></div></div>
 
+      <div class="sec-tit">Apple Pay (iPhone)</div>
+      <div class="tarjeta">
+        <div class="ajuste-fila"><span>📲 Traer pagos de Apple Pay</span><button class="interruptor ${D.applePay ? 'on' : ''}" id="jApplePay" aria-label="Traer pagos de Apple Pay"></button></div>
+        ${D.applePay ? '<button class="anadir" id="jGuiaAP" style="margin-top:10px">¿Cómo se configura en el iPhone?</button>' : ''}
+      </div>
+      <p class="nota" style="margin:8px 6px 0">Con una automatización de Atajos, cada pago con Apple Pay se guarda en el iPhone. En Inicio pulsas «Traer» y los añades de una vez.</p>
+
       <div class="sec-tit">Zona peligrosa</div>
       <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
       <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>`,
@@ -1534,6 +1714,8 @@ function vistaAjustes() {
       };
       $('jAddCat').onclick = addCat;
       $('jNuevaCat').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCat(); } };
+      $('jApplePay').onclick = () => { D.applePay = !D.applePay; guardarDatos(); pintarApp(); if (D.applePay) hojaGuiaApplePay(); };
+      if ($('jGuiaAP')) $('jGuiaAP').onclick = hojaGuiaApplePay;
       $('bBorrar').onclick = () => {
         if (!confirm('¿Seguro? Se borrará todo lo que tienes en Pre$u y volverás a empezar.')) return;
         localStorage.removeItem('presu'); localStorage.removeItem('presu_borrador');
