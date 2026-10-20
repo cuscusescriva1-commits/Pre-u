@@ -301,6 +301,8 @@ input[type=date].texto{min-height:52px}
 .applepay .mini-b{flex:none;padding:10px 16px}
 .pago{background:var(--card);border-radius:18px;padding:14px 14px 12px;margin-bottom:10px;box-shadow:var(--sombra);transition:opacity .2s}
 .pago.fuera{opacity:.45}
+.pago .aviso-repe{margin-top:8px;font-size:13px;line-height:1.35;color:var(--txt);background:rgba(255,159,10,.16);border-radius:10px;padding:7px 10px}
+.pago.fuera .aviso-repe{opacity:1}
 .pago .arriba-pago{display:flex;align-items:center;gap:10px}
 .pago .arriba-pago .txt{flex:1;min-width:0}
 .pago .arriba-pago b{display:block;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -975,6 +977,7 @@ function pintarInicio(recien) {
   F = formVacio();
   movIni = null;
   pintarApp(true);
+  setTimeout(vueltaDeRescate, 400);
 }
 
 function pintarApp(conAnimacion) {
@@ -1184,30 +1187,183 @@ function cuentaPara(comercio, tarjeta) {
   if (rec && D.cuentas.some(c => c.id === rec.cuenta)) return rec.cuenta;
   return cuentaApp(D.ultimaCuenta);
 }
-function leerPagos(texto) {
-  const vistos = new Set(D.importados || []), r = [], min = fechaMin(), h = hoyIso();
-  // Separador: «;» (fácil de escribir en el iPhone) o «|»
-  String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^PRESU\s*[|;]/i.test(l)).forEach(l => {
-    const sep = l.match(/^PRESU\s*([|;])/i)[1];
-    const [, f, imp, com, tarjeta] = l.split(sep).map(x => (x || '').trim());
-    const id = l.replace(/\s+/g, ' ');
-    const importe = importeDeTexto(imp), fecha = fechaDeTexto(f);
-    if (vistos.has(id) || !(importe > 0) || fecha < min || fecha > h) return;
-    vistos.add(id);
-    const comercio = com || 'Apple Pay';
-    r.push({ id, fecha, importe: r2(importe), comercio, cat: categoriaPara(comercio), cuenta: cuentaPara(comercio, tarjeta), si: true });
+const horaDeTexto = t => { const m = String(t || '').match(/(\d{1,2}):(\d{2})/); return m ? m[1].padStart(2, '0') + ':' + m[2] : '00:00'; };
+// ¿Qué es cada trozo de una línea? Se mira el contenido, no la posición, así da igual el orden en que lleguen.
+const pareceFecha = t => /\d{4}-\d{2}-\d{2}/.test(t) || /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/.test(t) || /\b\d{1,2}\s+(de\s+)?[a-zé]{3,}\.?\s+(de\s+)?\d{4}\b/i.test(t);
+const conMoneda = t => /€|\beur\b|\beuros?\b/i.test(t) && /\d/.test(t);
+const soloNumero = t => /^[-+]?\d{1,3}([.\s]\d{3})*([.,]\d{1,2})?$/.test(t.trim()) || /^[-+]?\d+([.,]\d{1,2})?$/.test(t.trim());
+const pareceTarjeta = t => D.cuentas.some(c => t.toLowerCase().includes(c.nombre.toLowerCase()))
+  || /tarjeta|card|visa|mastercard|maestro|amex|d[eé]bito|cr[eé]dito|••|\*{2,}|apple cash/i.test(t);
+// Separa una línea en { fecha, momento, importe, comercio, tarjeta }. Separador «;» o «|».
+function partesLinea(l) {
+  const sep = l.match(/^PRESU\s*([|;])/i)[1];
+  const trozos = l.split(sep).slice(1).map(x => x.trim()).filter(Boolean);
+  const iF = trozos.findIndex(pareceFecha);
+  const f = iF >= 0 ? trozos[iF] : '';
+  let resto = trozos.filter((_, k) => k !== iF);
+  // Importe: primero un trozo con «€»; si no, un trozo que sea solo un número
+  let iI = resto.findIndex(conMoneda);
+  if (iI < 0) iI = resto.findIndex(soloNumero);
+  let importe = NaN, comercio = '', tarjeta = '';
+  if (iI >= 0) {
+    const t = resto[iI];
+    const m = t.match(/[-+]?\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|[-+]?\d+(?:[.,]\d{1,2})?/);
+    importe = m ? Math.abs(num(m[0])) : NaN;
+    // si en el mismo trozo hay palabras (ej. «Estanco Pepe 1,50 €»), son el comercio
+    const palabras = t.replace(m ? m[0] : '', '').replace(/€|\beur(os?)?\b/ig, '').replace(/[·,:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    resto = resto.filter((_, k) => k !== iI);
+    if (palabras && /[a-záéíóúñ]/i.test(palabras)) resto.unshift(palabras);
+  }
+  let iT = -1;   // la tarjeta suele ir al final: se busca desde atrás, y nunca se usa el primer trozo (es el comercio)
+  for (let k = resto.length - 1; k >= 1; k--) if (pareceTarjeta(resto[k])) { iT = k; break; }
+  if (iT >= 0) { tarjeta = resto[iT]; resto = resto.filter((_, k) => k !== iT); }
+  comercio = resto[0] || '';
+  const fecha = f ? fechaDeTexto(f) : hoyIso();
+  return { fecha, momento: fecha + 'T' + horaDeTexto(f), importe, comercio, tarjeta };
+}
+// Junta cada línea que empieza por PRESU con las siguientes que no empiezan por PRESU
+// (por si el iPhone escribe el pago en varias líneas)
+function lineasPresu(texto) {
+  const r = [];
+  String(texto || '').split(/\r?\n/).forEach(l => {
+    l = l.trim(); if (!l) return;
+    if (/^PRESU\s*[|;]/i.test(l)) r.push(l);
+    else if (r.length) { const sep = r[r.length - 1].match(/^PRESU\s*([|;])/i)[1]; r[r.length - 1] += sep + l; }
   });
-  return r.sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+  return r;
+}
+// Lee el archivo de pagos y devuelve SOLO los nuevos.
+// - «Marca» (D.applePayHasta): fecha y hora del pago más reciente ya traído. Todo lo anterior se ignora siempre,
+//   aunque el archivo tenga miles de líneas.
+// - Del mismo minuto que la marca se recuerda cuáles ya se trajeron (D.importados), por si hubo varios pagos ese minuto.
+// - Dos líneas idénticas cuentan como dos pagos (por eso cada una lleva su número: #1, #2…).
+// - Además devuelve r.info = { lineas, sinImporte } para explicar qué pasa si no sale nada.
+// El botón «Recuperar mis pagos» ejecuta el atajo sin pago, y eso deja una línea vacía: se recuerda a qué hora fue
+const momentoAhora = () => { const d = new Date(); return hoyIso() + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function deRescate(m) {
+  const min = x => Date.UTC(+x.slice(0, 4), +x.slice(5, 7) - 1, +x.slice(8, 10), +x.slice(11, 13), +x.slice(14, 16)) / 6e4;
+  return (D.rescates || []).some(r => { const d = min(m) - min(r); return d >= 0 && d <= 3; });
+}
+function leerPagos(texto) {
+  if (!D.applePayHasta && (D.importados || []).length && !String(D.importados[0]).includes('#')) {
+    // datos de la versión anterior: se calcula la marca con lo que ya se había traído
+    D.applePayHasta = D.importados.reduce((m, l) => { const x = /^PRESU\s*[|;]/i.test(l) ? partesLinea(l).momento : ''; return x > m ? x : m; }, '');
+    D.importados = [];
+  }
+  const marca = D.applePayHasta || '', vistos = new Set(D.importados || []), r = [], min = fechaMin(), h = hoyIso(), repes = {}, todos = [];
+  const lineas = lineasPresu(texto);
+  let sinImporte = 0, recientesSinImporte = 0;
+  lineas.forEach(l => {
+    const base = l.replace(/\s+/g, ' ');
+    repes[base] = (repes[base] || 0) + 1;
+    const id = base + '#' + repes[base];
+    const { importe, comercio: com, tarjeta, fecha, momento } = partesLinea(l);
+    if (!(importe > 0)) {   // líneas sin datos: las del rescate (se ignoran) o pagos que llegaron sin datos (aviso)
+      sinImporte++;
+      if (momento >= marca && fecha >= min && !deRescate(momento)) recientesSinImporte++;
+      return;
+    }
+    if (fecha < min || fecha > h) return;                      // de antes de empezar o con fecha rara
+    const comercio = com || 'Apple Pay';
+    const pago = { id, momento, fecha, importe: r2(importe), comercio };
+    todos.push(pago);                                          // todos los pagos del archivo (para buscar repetidos)
+    if (momento < marca || vistos.has(id)) return;              // ya traído
+    r.push(Object.assign(pago, { cat: categoriaPara(comercio), cuenta: cuentaPara(comercio, tarjeta), si: true }));
+  });
+  // Al acercar el móvil al datáfono se guarda un pago aunque dé error. Si hay otro igual (mismo comercio e importe)
+  // pocos minutos antes, seguramente fue un intento fallido: se marca y se deja SIN añadir (se puede activar a mano).
+  const minutos = m => Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, +m.slice(8, 10), +m.slice(11, 13), +m.slice(14, 16)) / 6e4;
+  r.forEach(x => {
+    const igual = todos.find(y => y !== x && todos.indexOf(y) < todos.indexOf(x) && y.importe === x.importe
+      && y.comercio.toLowerCase() === x.comercio.toLowerCase() && minutos(x.momento) - minutos(y.momento) <= 10);
+    if (igual) { x.repetido = igual.momento.slice(11); x.si = false; }
+  });
+  r.sort((a, b) => a.momento < b.momento ? -1 : 1);
+  r.info = { lineas: lineas.length, sinImporte, recientesSinImporte };
+  return r;
 }
 
+// Al pulsar «Traer»: mira el portapapeles. Si no hay pagos nuevos, ofrece el rescate.
 async function traerApplePay() {
+  try { localStorage.removeItem('presu_rescate'); } catch (e) {}
   let texto = null;
   try { texto = await navigator.clipboard.readText(); } catch (e) { texto = null; }
-  if (texto === null) return hojaPegar();          // el navegador no deja leer: se pega a mano
-  const pagos = leerPagos(texto);
-  if (!pagos.length) return aviso(/PRESU\s*[|;]/i.test(texto) ? 'No hay pagos nuevos ✓' : 'No hay pagos de Apple Pay copiados');
-  hojaPagos(pagos);
+  if (texto === null) return hojaRescate('sinPermiso');       // el iPhone no dejó leer (o se pulsó fuera de «Pegar»)
+  usarTextoPagos(texto, true);
 }
+// Mira un texto (del portapapeles o del archivo) y abre la revisión, o explica por qué no hay nada
+function usarTextoPagos(texto, desdePortapapeles) {
+  const pagos = leerPagos(texto);
+  if (pagos.length) return hojaPagos(pagos);
+  const info = pagos.info;
+  if (!info.lineas) return desdePortapapeles ? hojaRescate('sinPresu') : aviso('Ese archivo no tiene pagos de Pre$u');
+  if (info.recientesSinImporte) return hojaRescate('sinImporte');
+  return desdePortapapeles ? hojaRescate('sinNuevos') : aviso('No hay pagos nuevos ✓');
+}
+
+// Abre un enlace del iPhone (ej. el de Atajos). Aparte para poder probarlo en el ordenador.
+function abrirEnlace(url) { const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+const NOMBRE_ATAJO = 'Pre$u';
+const ENLACE_ATAJO = '';   // ← aquí irá el enlace de iCloud del atajo de Carles (https://www.icloud.com/shortcuts/…)
+
+function hojaRescate(motivo) {
+  const T = {
+    sinPresu:   ['¿No aparecen tus pagos?', 'En el portapapeles no hay pagos (seguramente has copiado otra cosa después de pagar). No pasa nada: siguen guardados en tu iPhone.'],
+    sinNuevos:  ['No hay pagos nuevos ✓', 'Ya has traído todos los pagos que había copiados. ¿Falta alguno? Recupéralos de tu iPhone.'],
+    sinPermiso: ['¿No aparecen tus pagos?', 'No se ha podido leer el portapapeles. Recupera tus pagos de otra forma:'],
+    sinImporte: ['⚠️ Los pagos llegan sin importe', 'La automatización se ejecuta, pero no le pasa los datos del pago al atajo. En Atajos → Automatización → «Ejecutar Pre$u» → Entrada, elige «Entrada de atajo» y luego «Transacción».']
+  }[motivo];
+  abrirHoja(() => ({
+    html: `<h2>${T[0]}</h2>
+      <p class="ayuda">${T[1]}</p>
+      <div class="botones-hoja">
+        <button class="boton" id="rRecuperar">🔄 Recuperar mis pagos</button>
+        <p class="nota" style="margin:-2px 4px 6px;text-align:center">Se abre Atajos un momento. Después vuelve con <b>◀ Pre$u</b> (arriba a la izquierda).</p>
+        <button class="boton suave" id="rArchivo">📄 Elegir el archivo Presu.txt</button>
+        <p class="nota" style="margin:-2px 4px 6px;text-align:center">Está en <b>iCloud Drive → Shortcuts</b>.</p>
+        <input type="file" id="rFile" accept=".txt,text/plain" class="oculto">
+        <button class="boton sec" id="rPegar">Pegar a mano</button>
+        <button class="boton sec" id="hCancelar">${motivo === 'sinNuevos' ? 'Cerrar' : 'Cancelar'}</button>
+      </div>`,
+    montar() {
+      $('rRecuperar').onclick = () => {
+        try { localStorage.setItem('presu_rescate', String(Date.now())); } catch (e) {}
+        D.rescates = (D.rescates || []).concat(momentoAhora()).slice(-30); guardarDatos();
+        cerrarHoja();
+        abrirEnlace('shortcuts://run-shortcut?name=' + encodeURIComponent(NOMBRE_ATAJO));
+      };
+      $('rArchivo').onclick = () => $('rFile').click();
+      $('rFile').onchange = async e => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        let texto = '';
+        try { texto = await f.text(); } catch (err) { return aviso('No se ha podido abrir el archivo'); }
+        usarTextoPagos(texto, false);
+      };
+      $('rPegar').onclick = hojaPegar;
+    }
+  }));
+}
+// Al volver de Atajos (con «◀ Pre$u»): botón grande para traer. El iPhone exige un toque para leer el portapapeles.
+function vueltaDeRescate() {
+  if (!D || !D.applePay || document.visibilityState === 'hidden') return;
+  let t = 0; try { t = +localStorage.getItem('presu_rescate') || 0; } catch (e) {}
+  if (!t) return;
+  if (Date.now() - t > 10 * 60 * 1000) { try { localStorage.removeItem('presu_rescate'); } catch (e) {} return; }
+  if ($('hoja') && $('rTraerAhora')) return;
+  abrirHoja(() => ({
+    html: `<h2>📲 ¡Ya estás de vuelta!</h2>
+      <p class="ayuda">Tus pagos están copiados otra vez. Pulsa el botón y después <b>Pegar</b>.</p>
+      <div class="botones-hoja"><button class="boton" id="rTraerAhora">📲 Traer ahora</button><button class="boton sec" id="hCancelar">Ahora no</button></div>`,
+    montar() {
+      $('rTraerAhora').onclick = () => { cerrarHoja(); traerApplePay(); };
+      $('hCancelar').onclick = () => { try { localStorage.removeItem('presu_rescate'); } catch (e) {} cerrarHoja(); };
+    }
+  }));
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(vueltaDeRescate, 250); });
+window.addEventListener('pageshow', () => setTimeout(vueltaDeRescate, 250));
+
 function hojaPegar() {
   abrirHoja(() => ({
     html: `<h2>📲 Pegar pagos</h2>
@@ -1216,11 +1372,7 @@ function hojaPegar() {
       <div class="botones-hoja"><button class="boton" id="hGuardar">Continuar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
     montar() {
       setTimeout(() => $('tPegar') && $('tPegar').focus(), 300);
-      $('hGuardar').onclick = () => {
-        const pagos = leerPagos($('tPegar').value);
-        if (!pagos.length) return aviso('No hay pagos nuevos');
-        hojaPagos(pagos);
-      };
+      $('hGuardar').onclick = () => usarTextoPagos($('tPegar').value, false);
     }
   }));
 }
@@ -1230,10 +1382,11 @@ function hojaPagos(pagos) {
     const n = pagos.filter(x => x.si).length, fuera = pagos.length - n;
     return {
       html: `<h2>📲 ${pagos.length === 1 ? 'Tienes 1 pago' : 'Tienes ' + pagos.length + ' pagos'} de Apple Pay</h2>
-        <p class="ayuda">Revisa la categoría${varias ? ' y la cuenta' : ''}. Toca ✕ en los que no quieras apuntar.</p>
+        <p class="ayuda">Revisa la categoría${varias ? ' y la cuenta' : ''}. Toca ✕ en los que no quieras apuntar (por ejemplo, si el pago dio error y pagaste de otra forma).</p>
         ${pagos.map((x, i) => `<div class="pago ${x.si ? '' : 'fuera'}">
-          <div class="arriba-pago"><div class="txt"><b>${esc(x.comercio)}</b><span>${textoFecha(x.fecha)}</span></div>
+          <div class="arriba-pago"><div class="txt"><b>${esc(x.comercio)}</b><span>${textoFecha(x.fecha)} · ${x.momento.slice(11)}</span></div>
             <div class="cant">−${eur(x.importe)}</div><button class="quitar-pago" data-i="${i}" aria-label="${x.si ? 'No apuntar' : 'Sí apuntar'}">${x.si ? '✕' : '↺'}</button></div>
+          ${x.repetido ? `<div class="aviso-repe">⚠️ ¿Repetido? Hay otro igual a las ${x.repetido}. Puede ser un intento que dio error. ${x.si ? 'Se añadirá.' : 'Toca ↺ si de verdad pagaste dos veces.'}</div>` : ''}
           ${x.si ? `<div class="fila-chips" data-i="${i}" data-t="cat">${D.categorias.map(k => `<button class="chip ${x.cat === k ? 'on' : ''}" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}</button>`).join('')}</div>
           ${varias ? `<div class="fila-chips" data-i="${i}" data-t="cuenta">${D.cuentas.map(k => `<button class="chip ${x.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}` : ''}
         </div>`).join('')}
@@ -1251,16 +1404,17 @@ function hojaPagos(pagos) {
         }));
         $('hGuardar').onclick = () => {
           D.comercios = D.comercios || {};
-          D.importados = D.importados || [];
+          // Nueva marca = el pago más reciente de esta tanda. Del minuto de la marca se guardan cuáles ya se han traído.
+          const marca = pagos.reduce((m, x) => x.momento > m ? x.momento : m, D.applePayHasta || '');
+          const vistos = (marca === D.applePayHasta ? D.importados || [] : []).concat(pagos.filter(x => x.momento === marca).map(x => x.id));
+          D.applePayHasta = marca; D.importados = vistos;
           let añadidos = 0;
           pagos.forEach(x => {
-            D.importados.push(x.id);
             if (!x.si) return;
             D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: x.importe, desc: x.comercio, cat: x.cat, cuenta: x.cuenta, fecha: x.fecha, ts: Date.now(), origen: 'applepay' });
             D.comercios[x.comercio.trim().toLowerCase()] = { cat: x.cat, cuenta: x.cuenta };   // la próxima vez saldrá igual
             D.ultimaCuenta = x.cuenta; añadidos++;
           });
-          D.importados = D.importados.slice(-500);
           guardarDatos(); cerrarHoja();
           aviso(añadidos ? (añadidos === 1 ? '1 gasto añadido ✓' : añadidos + ' gastos añadidos ✓') : 'Vale, no se añade nada');
           pintarApp();
@@ -1270,22 +1424,35 @@ function hojaPagos(pagos) {
   });
 }
 
-// Guía para configurar la automatización en el iPhone
+// Guía para configurar Apple Pay en el iPhone (nombres de iOS 26)
 function hojaGuiaApplePay() {
   abrirHoja(() => ({
     html: `<h2>📲 Configurar Apple Pay</h2>
-      <p class="ayuda">Se hace una sola vez, en la app <b>Atajos</b> del iPhone (iOS 17 o más nuevo).</p>
+      <p class="ayuda">Se hace una sola vez, en la app <b>Atajos</b> del iPhone. Necesitas iOS 17 o más nuevo y tu tarjeta en la Cartera.</p>
+      <div class="etq">1 · El atajo «Pre$u»</div>
+      ${ENLACE_ATAJO ? `<button class="boton" id="gInstalar">Instalar el atajo</button>
+        <p class="nota">Pulsa <b>Añadir atajo</b> y <b>no le cambies el nombre</b>.</p>`
+      : `<div class="tarjeta guia"><ol>
+        <li>Atajos → <b>Biblioteca</b> → <b>＋</b>. Llámalo exactamente <code>Pre$u</code>.</li>
+        <li><b>Texto</b>: <code>PRESU;</code> + <b>Fecha actual</b> + <code>;</code> + <b>Entrada de atajo</b>.</li>
+        <li><b>Añadir a archivo</b>: carpeta <b>Shortcuts</b>, ruta <code>Presu.txt</code>, <b>Crear nueva línea</b> activado.</li>
+        <li><b>Obtener archivo</b> de Shortcuts, ruta <code>Presu.txt</code> → <b>Obtener texto de</b> → <b>Copiar en el portapapeles</b>.</li>
+        <li><b>Mostrar notificación</b>: <code>💸 Guardado para Pre$u</code>.</li>
+        <li>Arriba, en «Si no hay datos de entrada», deja <b>Continuar</b>.</li></ol></div>`}
+      <div class="etq">2 · La automatización</div>
       <div class="tarjeta guia"><ol>
-        <li>Abre <b>Atajos</b> → pestaña <b>Automatización</b> → <b>＋</b>.</li>
-        <li>Elige <b>Transacción</b>, deja marcadas tus tarjetas y activa <b>Ejecutar inmediatamente</b>. Pulsa <b>Siguiente</b> → <b>Nueva automatización en blanco</b>.</li>
-        <li>Añade la acción <b>Texto</b> y escribe <code>PRESU;</code>, luego la variable <b>Fecha actual</b>, <code>;</code>, <b>Importe</b>, <code>;</code>, <b>Comercio</b>, <code>;</code>, <b>Tarjeta</b> (el <code>;</code> está en el teclado <b>123</b>).</li>
-        <li>Añade <b>Añadir al archivo de texto</b>: que añada el <b>Texto</b> al archivo <code>Presu.txt</code> (carpeta Atajos), con <b>Nueva línea</b> activado.</li>
-        <li>Añade <b>Obtener archivo</b> → <code>Presu.txt</code> de la carpeta Atajos.</li>
-        <li>Añade <b>Obtener texto de la entrada</b> (del archivo) y después <b>Copiar al portapapeles</b> (ese texto).</li>
-        <li>Añade <b>Mostrar notificación</b>: <code>💸 Importe en Comercio · guardado para Pre$u</code>.</li>
-        <li>Pulsa <b>OK</b>. ¡Listo! Paga con Apple Pay, abre Pre$u y pulsa <b>Traer</b>.</li>
-      </ol></div>
-      <div class="botones-hoja"><button class="boton" id="hCancelar">Entendido</button></div>`
+        <li>Atajos → <b>Automatización</b> → <b>＋</b> → <b>Transacción</b>.</li>
+        <li>Marca tus tarjetas → <b>Ejecutar inmediatamente</b> → <b>Siguiente</b>.</li>
+        <li>En <b>Buscar acciones</b>: <b>Ejecutar atajo</b> → elige <b>Pre$u</b>.</li>
+        <li>Toca la flechita → <b>Entrada</b> → <b>Entrada de atajo</b> → elige <b>Transacción</b>.</li>
+        <li>Pulsa <b>✓</b>.</li></ol></div>
+      <div class="etq">3 · Cada día</div>
+      <div class="tarjeta guia"><ol>
+        <li>Paga con Apple Pay sin abrir Pre$u.</li>
+        <li>Abre Pre$u → <b>Traer</b> → <b>Pegar</b> → revisa → <b>Añadir</b>.</li>
+        <li>Si has copiado otra cosa, pulsa <b>Recuperar mis pagos</b>.</li></ol></div>
+      <div class="botones-hoja"><button class="boton ${ENLACE_ATAJO ? 'sec' : ''}" id="hCancelar">Entendido</button></div>`,
+    montar() { if ($('gInstalar')) $('gInstalar').onclick = () => abrirEnlace(ENLACE_ATAJO); }
   }));
 }
 
