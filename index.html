@@ -118,6 +118,9 @@ input[type=date].texto{min-height:52px}
 .logo{width:76px;height:76px;filter:drop-shadow(0 6px 16px rgba(14,159,110,.35));margin-bottom:26px}
 .bienvenida .cuerpo{display:flex;flex-direction:column;justify-content:center;padding-top:0}
 .bienvenida h1{font-size:34px}
+.plan-luego{margin-top:14px;display:flex;flex-direction:column;gap:3px}
+.plan-luego span{color:var(--sub);font-size:14.5px}
+.plan-luego b{font-size:18px;font-weight:700}
 .bienvenida .privado{margin:22px auto 0;max-width:300px;font-size:13px;line-height:1.45;color:var(--sub);text-align:center}
 .grande{font-size:56px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;line-height:1.05}
 .pos{color:var(--verde)}.neg{color:var(--rojo)}
@@ -438,7 +441,7 @@ const DIAS_NOMBRE = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', '
 // ---------- Borrador del cuestionario (se guarda en cada paso por si se cierra la app) ----------
 const VACIO = () => ({
   paso: 0, nombre: '', periodo: '', cuentas: [], fuentes: [], sinIngresos: false, ingresos: {},
-  fijos: [], tieneAhorro: null, ahorro: { importe: null, modo: '', hasta: '' }, sobrante: ''
+  fijos: [], tieneAhorro: null, ahorro: { importe: null, modo: '', hasta: '' }, saldos: {}, sobrante: ''
 });
 let B = Object.assign(VACIO(), leer('presu_borrador') || {});
 let direccion = 1;
@@ -446,7 +449,7 @@ const guardarBorrador = () => guardar('presu_borrador', B);
 
 // Lista de pasos (cambia según lo que elijas: un paso por cada tipo de ingreso)
 function pasos() {
-  return ['bienvenida', 'nombre', 'periodo', 'cuentas', 'fuentes', ...B.fuentes.map(f => 'ingreso:' + f), 'fijos', 'ahorro', 'sobrante', 'plan'];
+  return ['bienvenida', 'nombre', 'periodo', 'cuentas', 'fuentes', ...B.fuentes.map(f => 'ingreso:' + f), 'fijos', 'ahorro', 'saldos', 'sobrante', 'plan'];
 }
 const palabraPeriodo = () => B.periodo === 'mes' ? 'mes' : 'semana';
 
@@ -457,30 +460,6 @@ function ir(delta) {
   guardarBorrador();
   pintar();
   window.scrollTo(0, 0);
-}
-
-// ---------- Cálculo del plan ----------
-// Pasa una cantidad de "cada semana" / "cada mes" al periodo elegido
-function aPeriodo(importe, frec, periodo) {
-  if (frec === periodo) return importe;
-  return periodo === 'semana' ? importe * 12 / 52 : importe * 52 / 12;
-}
-function periodosHasta(hasta, periodo) {
-  const [y1, m1, d1] = hoyIso().split('-').map(Number), [y2, m2, d2] = hasta.split('-').map(Number);
-  if (periodo === 'mes') return Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
-  return Math.max(1, Math.ceil((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1) + 864e5) / (7 * 864e5)));
-}
-function calcularPlan() {
-  const p = B.periodo || 'semana';
-  const ingresos = B.fuentes.reduce((a, f) => a + aPeriodo(B.ingresos[f].importe || 0, B.ingresos[f].frec, p), 0);
-  const fijos = B.fijos.reduce((a, x) => a + aPeriodo(x.importe || 0, x.frec, p), 0);
-  let deAhorros = 0, nPeriodos = 0;
-  if (B.tieneAhorro && B.ahorro.modo === 'gastar' && B.ahorro.hasta) {
-    nPeriodos = periodosHasta(B.ahorro.hasta, p);
-    deAhorros = (B.ahorro.importe || 0) / nPeriodos;
-  }
-  const hayMensualEnSemanas = p === 'semana' && (B.fuentes.some(f => B.ingresos[f].frec === 'mes') || B.fijos.some(x => x.frec === 'mes'));
-  return { ingresos, fijos, deAhorros, nPeriodos, total: ingresos - fijos + deAhorros, aproximado: hayMensualEnSemanas };
 }
 
 // ---------- Validación de cada paso ----------
@@ -499,6 +478,7 @@ function puedeSeguir(id) {
     if (B.tieneAhorro !== true || !(B.ahorro.importe > 0) || !B.ahorro.modo) return false;
     return B.ahorro.modo === 'hucha' || (B.ahorro.hasta && B.ahorro.hasta > hoyIso());
   }
+  if (id === 'saldos') return B.cuentas.every(c => isFinite((B.saldos || {})[c.id]));
   if (id === 'sobrante') return !!B.sobrante;
   return true;
 }
@@ -513,6 +493,7 @@ function porQueNo(id) {
   }
   if (id.startsWith('ingreso:')) return id === 'ingreso:otro' && !(B.ingresos.otro.nombre || '').trim() ? 'Ponle un nombre' : 'Escribe la cantidad';
   if (id === 'fijos') return 'Pon nombre y cantidad a cada gasto (o quítalo con ✕)';
+  if (id === 'saldos') return B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)';
   if (id === 'ahorro') {
     if (B.tieneAhorro !== true) return 'Elige una opción';
     if (!B.ahorro.modo) return 'Dinos si te lo puedes gastar';
@@ -758,34 +739,89 @@ const PANTALLAS = {
     };
   },
 
+  // ¿Cuánto tienes ahora? (lo que hay en el banco; con eso se gasta hasta que cobras)
+  saldos: () => {
+    B.saldos = B.saldos || {};
+    Object.keys(B.saldos).forEach(id => { if (!B.cuentas.some(c => c.id === id)) delete B.saldos[id]; });
+    const varias = B.cuentas.length > 1, uno = B.cuentas[0];
+    const val = id => isFinite(B.saldos[id]) ? txtSaldo(B.saldos[id]) : '';
+    return {
+      html: `<div class="emoji">💳</div><h1>¿Cuánto tienes ahora?</h1>
+        <p class="ayuda">Mira la app de tu banco y pon lo que hay ahora mismo${varias ? ' en cada cuenta' : ''}, ahorros incluidos.</p>
+        <div class="tarjeta" style="margin-top:4px">
+          ${varias ? `${B.cuentas.map(c => `<div class="saldo-fila"><span>${emojiCuenta(c.nombre)} ${esc(c.nombre.trim() || 'Sin nombre')}</span>
+              <input class="s-imp" data-id="${c.id}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${val(c.id)}"></div>`).join('')}
+            <div class="ah-total"><span>Total</span><b id="sTotal">${eur(totalSaldos())}</b></div>`
+          : `<div class="sub" style="text-align:center;color:var(--sub);font-size:14px">${emojiCuenta(uno.nombre)} ${esc(uno.nombre.trim())}</div>
+            <input id="sImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${val(uno.id)}">`}
+        </div>
+        <p class="nota" id="sNota" style="margin:12px 4px 0">${notaSaldos()}</p>`,
+      alMontar() {
+        const poner = (id, v) => { const n = num(v); if (isFinite(n)) B.saldos[id] = r2(n); else delete B.saldos[id]; };
+        const cambio = () => { guardarBorrador(); actualizarBoton(); if ($('sTotal')) $('sTotal').textContent = eur(totalSaldos()); $('sNota').innerHTML = notaSaldos(); };
+        if (varias) document.querySelectorAll('.s-imp').forEach(i => i.oninput = () => { poner(i.dataset.id, i.value); cambio(); });
+        else $('sImporte').oninput = e => { poner(uno.id, e.target.value); cambio(); };
+        const primero = $('sImporte') || document.querySelector('.s-imp');
+        if (primero && !primero.value) setTimeout(() => primero.focus(), 250);
+      }
+    };
+  },
+
+  // El plan: se calcula con las mismas cuentas que usará la app
   plan: () => {
-    const c = calcularPlan(), p = palabraPeriodo(), esteP = p === 'mes' ? 'al mes' : 'a la semana';
+    const d = datosDelBorrador(), h = hoyIso(), mes = d.periodo === 'mes', esteP = mes ? 'al mes' : 'a la semana';
+    const c = calcular(d, h), conCobro = hayIngresoMensual(d), c0 = inicioCiclo(d.creado);
+    // Un periodo «normal»: el primero después de lo que tenías al empezar
+    let p1 = siguientePeriodo(c.ini, d.periodo);
+    if (!mes && conCobro) while (cicloDeSemana(d, p1) === c0) p1 = masDias(p1, 7);
+    const r1 = calcular(d, h, p1), normal = r2(r1.entra + r1.deInicio + r1.deAhorros - r1.fijos);
+    const cobro = conCobro && d.ingresos.some(x => x.frec === 'mes' && x.dia === d.diaMes);
     const filas = [];
-    if (c.ingresos) filas.push(['Te entra', '+' + eur(c.ingresos)]);
+    if (c.deInicio) filas.push([c.ciclo && c.ciclo.arranque && c.ciclo.n > 1 ? `Lo que tienes ahora (${eur(d.inicial)} entre ${c.ciclo.n} semanas)` : 'Lo que tienes ahora', '+' + eur(c.deInicio)]);
+    if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
+    if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
     if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
-    if (c.deAhorros) filas.push([`De tus ahorros (${c.nPeriodos} ${p === 'mes' ? 'meses' : 'semanas'})`, '+' + eur(c.deAhorros)]);
     const hucha = B.tieneAhorro && B.ahorro.modo === 'hucha' ? B.ahorro.importe : 0;
+    const despues = cobro ? 'Cuando cobres (' + fechaCorta(cicloSiguiente(c0)) + ')'
+      : !mes && conCobro ? 'Desde el ' + fechaCorta(p1) : mes ? 'Los demás meses' : 'Las demás semanas';
     return {
       html: `<div class="emoji">🎉</div><h1>Listo, ${esc(B.nombre.trim())}</h1>
         <p class="ayuda">Este es tu plan:</p>
         <div class="tarjeta" style="text-align:center;padding:24px 18px">
-          <div style="color:var(--sub);font-size:15px">Puedes gastar</div>
+          <div style="color:var(--sub);font-size:15px">${mes ? 'Este mes' : 'Esta semana'} puedes gastar</div>
           <div class="grande ${c.total < 0 ? 'neg' : 'pos'}">${eur(c.total)}</div>
-          <div style="color:var(--sub);font-size:15px">${esteP}${c.aproximado ? ' (aprox.)' : ''}</div>
+          <div style="color:var(--sub);font-size:15px">${textoRangoD(d, c.ini, c.fin)}</div>
         </div>
         ${filas.length ? `<div class="tarjeta" style="margin-top:14px">
           ${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
           <div class="linea total"><span>Para gastar</span><b>${eur(c.total)}</b></div></div>` : ''}
-        ${hucha ? `<div class="tarjeta" style="margin-top:14px"><div class="linea"><span>🐷 En la hucha (no se toca)</span><b>${eur(hucha)}</b></div></div>` : ''}
-        <p class="nota" style="margin-top:14px">${c.total < 0
+        <div class="tarjeta plan-luego"><span>${despues}</span><b>unos ${eur(normal)} ${esteP}</b></div>
+        ${hucha ? `<div class="tarjeta" style="margin-top:14px"><div class="linea" style="border-top:0"><span>🐷 En la hucha (no se toca)</span><b>${eur(hucha)}</b></div></div>` : ''}
+        <p class="nota" style="margin-top:14px">${normal < 0
           ? 'Ahora mismo pagas más de lo que te entra. Puedes revisar las cantidades volviendo atrás.'
-          : c.aproximado ? 'Como algo es mensual, cada semana se reajusta sola según lo que te quede del mes.'
-          : (p === 'mes' ? 'Si un mes' : 'Si una semana') + ' gastas menos, lo que sobre ' + (B.sobrante === 'ahorro' ? 'irá a tus ahorros.' : p === 'mes' ? 'se sumará al mes siguiente.' : 'se sumará a la semana siguiente.')}
+          : (!mes && conCobro ? 'Lo de cada mes se reparte entre sus semanas, así que cambia un poco según el mes. ' : '')
+            + (mes ? 'Si un mes' : 'Si una semana') + ' gastas menos, lo que sobre ' + (B.sobrante === 'ahorro' ? 'irá a tus ahorros.' : mes ? 'se sumará al mes siguiente.' : 'se sumará a la semana siguiente.')}
           Todo se puede cambiar en Ajustes.</p>`,
       boton: 'Empezar a usar Pre$u'
     };
   }
 };
+const totalSaldos = () => r2(B.cuentas.reduce((t, c) => t + (isFinite((B.saldos || {})[c.id]) ? B.saldos[c.id] : 0), 0));
+// Debajo de «¿Cuánto tienes ahora?»: cuánto es para gastar y qué pasa con lo que toca hoy
+function notaSaldos() {
+  const d = datosDelBorrador(), h = hoyIso(), total = totalSaldos(), aho = B.tieneAhorro ? (B.ahorro.importe || 0) : 0;
+  fijarDiaMes(d);
+  const hasta = hayIngresoMensual(d) ? 'hasta que cobres (' + fechaCorta(cicloSiguiente(inicioCiclo(h))) + ')' : B.periodo === 'mes' ? 'este mes' : 'esta semana';
+  const hoyToca = [...d.ingresos.map(x => [x, '+']), ...d.fijos.map(x => [x, '−'])].filter(([x]) => fechasDe(x, h, h).length)
+    .map(([x, sg]) => esc(x.nombre) + ' ' + sg + eur(x.importe));
+  const partes = [];
+  if (Object.keys(B.saldos || {}).length) partes.push((aho ? 'De esto, ' + eur(aho) + ' son tus ahorros. ' : '') + 'Para gastar ' + hasta + ': <b>' + eur(Math.max(0, r2(total - aho))) + '</b>');
+  // ¿Mucho dinero? Puede que parte sean ahorros y no lo haya dicho
+  const alMes = d.ingresos.reduce((t, x) => t + (x.frec === 'mes' ? x.importe : x.importe * 52 / 12), 0);
+  if (total - aho > Math.max(300, alMes * 1.5)) partes.push('¿Parte de esto son ahorros? Vuelve atrás y ponlo en «¿Tienes dinero ahorrado?», o te lo contaremos todo para gastar.');
+  if (hoyToca.length) partes.push('Lo que te toca hoy (' + hoyToca.join(', ') + ') cuenta como si ya hubiera pasado.');
+  return partes.join('<br>');
+}
 
 // ---------- Ayudas para los botones ----------
 function elegirUna(id, cb, repintar) {
@@ -837,27 +873,38 @@ document.addEventListener('keydown', e => {
 });
 
 // ---------- Guardar el plan definitivo ----------
-function terminar() {
-  const datos = {
+function datosDelBorrador() {
+  const ingresos = B.fuentes.map(t => ({
+      id: 'b-' + t, tipo: t, emoji: FUENTES[t].emoji,
+      nombre: t === 'otro' ? (B.ingresos[t].nombre || '').trim() : FUENTES[t].titulo,
+      importe: r2(B.ingresos[t].importe || 0), frec: B.ingresos[t].frec, dia: B.ingresos[t].dia, cuenta: cuentaValida(B.ingresos[t].cuenta)
+    }));
+  const hoy = hoyIso(), saldos = B.saldos || {}, conSaldo = B.cuentas.some(c => isFinite(saldos[c.id]));
+  const total = B.cuentas.reduce((t, c) => t + (isFinite(saldos[c.id]) ? saldos[c.id] : 0), 0);
+  return {
     version: 1,
-    creado: hoyIso(),
+    creado: hoy,
     nombre: B.nombre.trim(),
-    periodo: B.periodo,
+    periodo: B.periodo || 'semana',
     sobrante: B.sobrante,
-    ingresos: B.fuentes.map(t => ({
-      id: nuevoId(), tipo: t, emoji: FUENTES[t].emoji,
-      nombre: t === 'otro' ? B.ingresos[t].nombre.trim() : FUENTES[t].titulo,
-      importe: r2(B.ingresos[t].importe), frec: B.ingresos[t].frec, dia: B.ingresos[t].dia, cuenta: cuentaValida(B.ingresos[t].cuenta)
-    })),
-    fijos: B.fijos.map(x => ({ id: x.id, emoji: x.emoji, nombre: x.nombre.trim(), importe: r2(x.importe), frec: x.frec, dia: 1, cuenta: cuentaValida(x.cuenta) })),
-    ahorro: B.tieneAhorro ? { importe: r2(B.ahorro.importe), modo: B.ahorro.modo, hasta: B.ahorro.modo === 'gastar' ? B.ahorro.hasta : '', cuenta: cuentaValida(B.ahorro.cuenta),
+    diaMes: diaDeCobro(ingresos),   // tu mes empieza el día que cobras
+    // Lo que tenías al empezar (sin tus ahorros): para gastar hasta que cobras
+    inicial: conSaldo ? r2(Math.max(0, total - (B.tieneAhorro ? (B.ahorro.importe || 0) : 0))) : null,
+    ingresos,
+    fijos: B.fijos.map(x => ({ id: x.id, emoji: x.emoji, nombre: x.nombre.trim(), importe: r2(x.importe || 0), frec: x.frec, dia: 1, cuenta: cuentaValida(x.cuenta) })),
+    ahorro: B.tieneAhorro ? { importe: r2(B.ahorro.importe || 0), modo: B.ahorro.modo, hasta: B.ahorro.modo === 'gastar' ? B.ahorro.hasta : '', cuenta: cuentaValida(B.ahorro.cuenta),
       ...(B.cuentas.length > 1 && B.ahorro.porCuenta ? { porCuenta: Object.assign({}, B.ahorro.porCuenta) } : {}) } : null,
-    cuentas: B.cuentas.map(c => ({ id: c.id, nombre: c.nombre.trim(), emoji: emojiCuenta(c.nombre) })),
+    cuentas: B.cuentas.map(c => Object.assign({ id: c.id, nombre: c.nombre.trim(), emoji: emojiCuenta(c.nombre) },
+      isFinite(saldos[c.id]) ? { saldo: r2(saldos[c.id]), saldoFecha: hoy, saldoEn: Date.now() } : {})),
     categorias: CATEGORIAS.slice(), catVersion: CAT_VERSION,
     objetivos: [],
     cambios: {},        // aquí irán los cambios de un periodo concreto (ej: este mes la paga fue 800 €)
     movimientos: []
   };
+}
+function terminar() {
+  const datos = datosDelBorrador();
+  datos.ingresos.forEach(x => { x.id = nuevoId(); });
   guardar('presu', datos);
   localStorage.removeItem('presu_borrador');
   pintarInicio(true);
@@ -882,17 +929,32 @@ const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
 const fechaCorta = s => +s.slice(8) + ' ' + MESES[+s.slice(5, 7) - 1];
 const mayus = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Periodos: una semana empieza en lunes; un mes, el día 1
-const inicioPeriodo = (s, P) => P === 'mes' ? primeroDe(s) : lunesDe(s);
-const finPeriodo = (ini, P) => P === 'mes' ? finDeMes(ini) : masDias(ini, 6);
-const siguientePeriodo = (ini, P) => P === 'mes' ? mesSiguiente(ini) : masDias(ini, 7);
-// Cuántas semanas (lunes) tiene un mes
-function lunesEnMes(m) {
-  let f = lunesDe(m), n = 0;
-  if (f < m) f = masDias(f, 7);
-  for (const fin = finDeMes(m); f <= fin; f = masDias(f, 7)) n++;
-  return n;
+// Periodos: una semana empieza en lunes; un mes, el día que cobras (DIA_MES; 1 = mes normal).
+// Ej.: si cobras el 27, «tu mes» va del 27 al 26 del mes siguiente. Si el mes es más corto, el último día.
+let DIA_MES = 1;
+const fijarDiaMes = d => { DIA_MES = (d && d.diaMes) || 1; };
+const diaEnMes = (s, dia) => { const [y, m] = s.split('-').map(Number); return s.slice(0, 8) + String(Math.min(dia, diasDelMes(y, m))).padStart(2, '0'); };
+const inicioCiclo = s => { const c = diaEnMes(s, DIA_MES); return s >= c ? c : diaEnMes(masDias(primeroDe(s), -1), DIA_MES); };
+const cicloSiguiente = c => diaEnMes(mesSiguiente(c), DIA_MES);
+const finCiclo = c => masDias(cicloSiguiente(c), -1);
+const inicioPeriodo = (s, P) => P === 'mes' ? inicioCiclo(s) : lunesDe(s);
+const finPeriodo = (ini, P) => P === 'mes' ? finCiclo(ini) : masDias(ini, 6);
+const siguientePeriodo = (ini, P) => P === 'mes' ? cicloSiguiente(ini) : masDias(ini, 7);
+// Por semanas, cada semana va con el mes de cobro en el que cae su jueves (la semana en que cobras ya cuenta con lo nuevo).
+// Las semanas de antes del primer mes completo van con el primero (el de cuando empezaste).
+function cicloDeSemana(d, w) { const c = inicioCiclo(masDias(w, 3)), c0 = inicioCiclo(d.creado); return c < c0 ? c0 : c; }
+function semanasDelCiclo(d, c) {
+  const primera = lunesDe(d.creado), r = [];
+  for (let w = lunesDe(masDias(c, -7)); w <= finCiclo(c); w = masDias(w, 7)) if (w >= primera && cicloDeSemana(d, w) === c) r.push(w);
+  return r;
 }
+// Repartir una cantidad en n partes iguales, en céntimos exactos (los céntimos que sobran, a las últimas)
+const parteDe = (total, n, i) => { const cent = Math.round(total * 100), base = Math.floor(cent / n), resto = cent - base * n; return (base + (i >= n - resto ? 1 : 0)) / 100; };
+// Lo que tenías al empezar: lo de antes (y lo del mismo día) ya está en tu saldo, no se vuelve a contar
+const yaEnSaldo = (d, f) => d.inicial != null && f <= d.creado;
+const hayIngresoMensual = d => d.ingresos.some(x => x.frec === 'mes');
+// El día que cobras: el del ingreso mensual más grande (si no hay, el 1)
+const diaDeCobro = ingresos => { const m = ingresos.filter(x => x.frec === 'mes' && x.importe > 0).sort((a, b) => b.importe - a.importe || a.dia - b.dia)[0]; return m ? m.dia : 1; };
 // Días en los que toca algo fijo entre dos fechas (si el mes es más corto, el último día)
 function fechasDe(item, desde, hasta) {
   // Si se cambió en Ajustes, cada versión vale desde/hasta una fecha (lo de antes no se toca)
@@ -918,7 +980,7 @@ const clave = (item, f) => item.id + '|' + f;
 
 // ---------- Ahorros para gastar: cuánto toca en cada periodo ----------
 const contarPeriodos = (a, b, P) => { let n = 0; for (let p = a; p <= b; p = siguientePeriodo(p, P)) n++; return n; };
-const periodoAnterior = (p, P) => P === 'mes' ? primeroDe(masDias(p, -1)) : masDias(p, -7);
+const periodoAnterior = (p, P) => P === 'mes' ? inicioCiclo(masDias(p, -1)) : masDias(p, -7);
 // Tramos [{ desde, ultimo, n, total }]: «total» € repartidos a partes iguales entre «n» periodos empezando en «desde».
 // Si no se ha cambiado nunca, un solo tramo desde el principio hasta la fecha elegida.
 // («ultimo» puede ser antes del final del reparto si luego se cambió: lo de antes se queda igual.)
@@ -948,11 +1010,12 @@ const sobranteEn = (d, p) => { let v = d.sobrante; (d.sobranteHist || []).forEac
 // «hasta» (opcional): calcular hasta otro periodo, por ejemplo uno futuro para ver lo previsto
 function calcular(d, hoy = hoyIso(), hasta) {
   const P = d.periodo;
-  // Ingreso fijo: lo de antes de empezar con Pre$u y lo que aún no ha llegado se cuenta normal;
-  // si ya tocaba y no ha contestado, NO cuenta hasta que diga que sí.
-  const ing = (it, f) => { const c = d.cambios[clave(it, f)]; if (c) return c.no ? 0 : c.importe; return f < d.creado || f > hoy ? it.importe : 0; };
-  // Gasto fijo: se resta solo (salvo que esa vez se haya cambiado)
-  const fij = (it, f) => { const c = d.cambios[clave(it, f)]; return c ? (c.no ? 0 : c.importe) : it.importe; };
+  fijarDiaMes(d);
+  // Ingreso fijo: lo que aún no ha llegado se cuenta normal; si ya tocaba y no ha contestado, NO cuenta hasta que diga que sí.
+  // Lo de antes de empezar: si puso lo que tenía (d.inicial), ya está ahí y no cuenta; si no, se cuenta como llegado.
+  const ing = (it, f) => { const c = d.cambios[clave(it, f)]; if (c) return c.no ? 0 : c.importe; if (yaEnSaldo(d, f)) return 0; return f < d.creado || f > hoy ? it.importe : 0; };
+  // Gasto fijo: se resta solo (salvo que esa vez se haya cambiado o ya estuviera pagado al empezar)
+  const fij = (it, f) => { const c = d.cambios[clave(it, f)]; if (c) return c.no ? 0 : c.importe; return yaEnSaldo(d, f) ? 0 : it.importe; };
   const suma = (lista, fn, desde, hasta) => lista.reduce((a, it) => a + fechasDe(it, desde, hasta).reduce((b, f) => b + fn(it, f), 0), 0);
   const semIng = d.ingresos.filter(x => x.frec === 'semana'), mesIng = d.ingresos.filter(x => x.frec === 'mes');
   const semFij = d.fijos.filter(x => x.frec === 'semana'), mesFij = d.fijos.filter(x => x.frec === 'mes');
@@ -965,30 +1028,35 @@ function calcular(d, hoy = hoyIso(), hasta) {
   const a = d.ahorro;
   const tramos = tramosAhorro(d);
 
-  // Por semanas: lo mensual de cada mes se reparte entre las semanas de ese mes (cada semana va con el mes de su lunes)
+  // Por semanas: lo mensual de cada mes de cobro se reparte entre sus semanas (en céntimos exactos)
   const bolsas = {};
-  const bolsa = m => bolsas[m] || (bolsas[m] = { entra: suma(mesIng, ing, m, finDeMes(m)), fijos: suma(mesFij, fij, m, finDeMes(m)), n: lunesEnMes(m) });
+  const bolsa = c => bolsas[c] || (bolsas[c] = { entra: suma(mesIng, ing, c, finCiclo(c)), fijos: suma(mesFij, fij, c, finCiclo(c)), sem: semanasDelCiclo(d, c) });
+  // Lo que tenías al empezar: para gastar hasta que cobras (si no cobras cada mes, para la primera semana)
+  const c0 = inicioCiclo(d.creado), conCobro = hayIngresoMensual(d), inicial = d.inicial || 0;
 
   let arrastre = 0, ahorrado = 0, res = null;
   for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
     const fin = finPeriodo(p, P);
-    let entra, fijos, nSemanas = 0;
+    let entra, fijos, nSemanas = 0, deInicio = 0, ciclo = null;
     if (P === 'mes') {
       entra = suma(d.ingresos, ing, p, fin);
       fijos = suma(d.fijos, fij, p, fin);
+      if (p === primero) deInicio = inicial;
     } else {
-      const b = bolsa(primeroDe(p));
-      nSemanas = b.n;
-      entra = suma(semIng, ing, p, fin) + b.entra / b.n;
-      fijos = suma(semFij, fij, p, fin) + b.fijos / b.n;
+      const c = cicloDeSemana(d, p), b = bolsa(c), n = Math.max(1, b.sem.length), i = Math.max(0, b.sem.indexOf(p));
+      nSemanas = n;
+      ciclo = { ini: c, fin: finCiclo(c), n, arranque: d.inicial != null && conCobro && c === c0 };
+      entra = suma(semIng, ing, p, fin) + parteDe(b.entra, n, i);
+      fijos = suma(semFij, fij, p, fin) + parteDe(b.fijos, n, i);
+      if (conCobro ? c === c0 : p === primero) deInicio = conCobro ? parteDe(inicial, n, i) : inicial;
     }
-    entra = r2(entra); fijos = r2(fijos);     // a céntimos, para que lo que se ve sume exacto
+    entra = r2(entra); fijos = r2(fijos); deInicio = r2(deInicio);     // a céntimos, para que lo que se ve sume exacto
     const deAhorros = r2(cuotaEn(tramos, p, P));
     const movs = d.movimientos.filter(x => x.fecha >= p && x.fecha <= fin);
     const extras = movs.filter(x => x.tipo === 'ingreso').reduce((s, x) => s + x.importe, 0);
     const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha).reduce((s, x) => s + x.importe, 0);
-    const total = entra + deAhorros - fijos + arrastre + extras;
-    res = { ini: p, fin, entra, deAhorros, fijos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas };
+    const total = entra + deInicio + deAhorros - fijos + arrastre + extras;
+    res = { ini: p, fin, entra, deInicio, deAhorros, fijos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo };
     // Al acabar un periodo: si falta dinero, se resta del siguiente; si sobra, al ahorro o al siguiente (según eligió)
     if (p < actual) {
       if (res.queda < 0 || sobranteEn(d, p) === 'siguiente') arrastre = res.queda;
@@ -998,7 +1066,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
 
   // Ingresos que ya tocaban y esperan respuesta (del más antiguo al más nuevo)
   const pendientes = [];
-  d.ingresos.forEach(it => fechasDe(it, d.creado, hoy).forEach(f => { if (!d.cambios[clave(it, f)]) pendientes.push({ item: it, fecha: f }); }));
+  d.ingresos.forEach(it => fechasDe(it, d.creado, hoy).forEach(f => { if (!d.cambios[clave(it, f)] && !yaEnSaldo(d, f)) pendientes.push({ item: it, fecha: f }); }));
   pendientes.sort((x, y) => x.fecha < y.fecha ? -1 : 1);
 
   const hucha = a && a.modo === 'hucha' ? a.importe - d.movimientos.filter(x => x.hucha).reduce((s, x) => s + x.importe, 0) : null;
@@ -1060,6 +1128,10 @@ function pintarInicio(recien) {
   D.movimientos = D.movimientos || [];
   // Si aún tiene la lista de categorías antigua (sin tocar), se cambia por la nueva
   // Lista de categorías nueva (una sola vez). Lo ya apuntado en «Comer fuera» pasa a «Comida»; lo demás se queda igual.
+  // Datos de antes del «mes desde el día que cobras» (20/10): siguen igual que estaban (mes del día 1, sin «lo que tenías al empezar»).
+  // Para usar lo nuevo: borrar los datos y volver a hacer el cuestionario (o cambiar el día en Ajustes → Perfil).
+  if (D.diaMes == null) { D.diaMes = 1; if (D.inicial === undefined) D.inicial = null; guardarDatos(); }
+  fijarDiaMes(D);
   if (!D.categorias || (D.catVersion || 1) < CAT_VERSION) {
     D.categorias = CATEGORIAS.slice(); D.catVersion = CAT_VERSION;
     D.movimientos.forEach(m => { if (m.cat === 'Comer fuera') m.cat = 'Comida'; });
@@ -1093,13 +1165,20 @@ function barra() {
 const botonAjustes = `<button class="atras" id="bAjustes" aria-label="Ajustes">${ICONOS.ajustes}</button>`;
 
 // ---------- 🏠 Inicio ----------
+// Explica de dónde sale lo mensual de esta semana
+function notaCiclo(k) {
+  const cobro = D.ingresos.some(x => x.frec === 'mes' && x.dia === DIA_MES), sig = cicloSiguiente(k.ini);
+  if (k.arranque) return `Hasta el ${fechaCorta(sig)}${cobro ? ', cuando cobras,' : ''} cuentas con lo que tenías al empezar${k.n > 1 ? ' (repartido entre ' + k.n + ' semanas)' : ''}.`;
+  if (DIA_MES === 1) return `Lo mensual se reparte entre las ${k.n} semanas de ${MESES_L[+k.ini.slice(5, 7) - 1]}.`;
+  return `Lo mensual se reparte entre las ${k.n} semanas de tu mes (del ${fechaCorta(k.ini)} al ${fechaCorta(k.fin)}).`;
+}
 function vistaInicio() {
   const c = calcular(D), mes = D.periodo === 'mes', h = hoyIso();
-  const rango = mes ? mayus(MESES_L[+c.ini.slice(5, 7) - 1]) + ' ' + c.ini.slice(0, 4)
-    : 'Del ' + (c.ini.slice(5, 7) === c.fin.slice(5, 7) ? +c.ini.slice(8) : fechaCorta(c.ini)) + ' al ' + fechaCorta(c.fin);
+  const rango = textoRango(c.ini, c.fin);
   const pct = c.queda < 0 ? 100 : c.total > 0 ? Math.min(100, c.queda / c.total * 100) : 0;
 
   const filas = [];
+  if (c.deInicio) filas.push(['Lo que tenías al empezar', '+' + eur(c.deInicio)]);
   if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
   if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
   if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
@@ -1135,7 +1214,7 @@ function vistaInicio() {
       <div class="hero-fechas">${rango}</div>
       <div class="barrita"><i class="${c.queda < 0 ? 'neg' : ''}" style="width:${pct}%"></i></div>
       <div class="desglose">${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
-        ${hayMensual ? `<div class="nota">Lo mensual se reparte entre las ${c.nSemanas} semanas de ${MESES_L[+c.ini.slice(5, 7) - 1]}.</div>` : ''}</div>
+        ${hayMensual && c.ciclo ? `<div class="nota">${notaCiclo(c.ciclo)}</div>` : ''}</div>
     </div>
     <div class="tarjeta apuntar" id="fApuntar">
       <div class="tit-tarjeta">Apuntar</div>
@@ -1565,8 +1644,12 @@ function hojaGuiaApplePay() {
 // ---------- 📋 Movimientos ----------
 let movIni = null;   // periodo que se está viendo en Movimientos (null = el actual)
 const FLECHA_DER = '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
+function textoRangoD(d, ini, fin) {
+  if (d.periodo === 'mes' && DIA_MES === 1) return mayus(MESES_L[+ini.slice(5, 7) - 1]) + ' ' + ini.slice(0, 4);
+  return 'Del ' + (ini.slice(5, 7) === fin.slice(5, 7) ? +ini.slice(8) : fechaCorta(ini)) + ' al ' + fechaCorta(fin);
+}
 function textoRango(ini, fin) {
-  if (D.periodo === 'mes') return mayus(MESES_L[+ini.slice(5, 7) - 1]) + ' ' + ini.slice(0, 4);
+  if (D.periodo === 'mes' && DIA_MES === 1) return mayus(MESES_L[+ini.slice(5, 7) - 1]) + ' ' + ini.slice(0, 4);
   return 'Del ' + (ini.slice(5, 7) === fin.slice(5, 7) ? +ini.slice(8) : fechaCorta(ini)) + ' al ' + fechaCorta(fin);
 }
 const fechaMin = () => inicioPeriodo(D.creado, D.periodo);
@@ -1591,9 +1674,11 @@ function fijosDelPeriodo(ini, fin) {
     }
     r.push({ it, tipo, f, valor, estado, espera, no: !!(c && c.no), reparte });
   };
+  // Lo de antes de empezar (y del mismo día) ya estaba en lo que tenías: no sale
+  const ciclo = semanas ? cicloDeSemana(D, ini) : null, nSem = semanas ? Math.max(1, semanasDelCiclo(D, ciclo).length) : 0;
   [['ingreso', D.ingresos], ['fijo', D.fijos]].forEach(([tipo, lista]) => lista.forEach(it => {
-    if (semanas && it.frec === 'mes') fechasDe(it, primeroDe(ini), finDeMes(ini)).forEach(f => meter(it, tipo, f, lunesEnMes(primeroDe(ini))));
-    else fechasDe(it, ini, fin).forEach(f => meter(it, tipo, f, 0));
+    if (semanas && it.frec === 'mes') fechasDe(it, ciclo, finCiclo(ciclo)).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, nSem));
+    else fechasDe(it, ini, fin).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, 0));
   }));
   return r.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : a.tipo === 'ingreso' ? -1 : 1);
 }
@@ -1604,7 +1689,7 @@ function vistaMovimientos() {
   const ultimo = inicioPeriodo(masDias(h, mes ? 365 : 364), P);   // se puede mirar hasta un año adelante
   if (!movIni || movIni > ultimo || movIni < primero) movIni = actual;
   const ini = movIni, fin = finPeriodo(ini, P), esActual = ini === actual;
-  const anterior = mes ? primeroDe(masDias(ini, -1)) : masDias(ini, -7);
+  const anterior = periodoAnterior(ini, P);
   const futuro = ini > actual;
   const c = calcular(D, h, ini);
   const titulo = esActual ? (mes ? 'Este mes' : 'Esta semana')
@@ -2059,7 +2144,9 @@ function vistaAjustes() {
         ${seg('jPeriodo', [['semana', 'Por semanas'], ['mes', 'Por meses']], D.periodo)}
         <div class="etq">Si te sobra dinero…</div>
         ${seg('jSobra', [['ahorro', 'Al ahorro'], ['siguiente', mes ? 'Al mes siguiente' : 'A la siguiente']], D.sobrante)}
-      </div>`,
+      </div>
+      ${mes || [...D.ingresos, ...D.fijos].some(x => x.frec === 'mes') ? `<div class="tarjeta lista"><div class="mov" id="jDiaMes"><div class="ico">📅</div>
+        <div class="txt"><b>Tu mes empieza el día ${DIA_MES}</b><span>${D.ingresos.some(x => x.frec === 'mes' && x.dia === DIA_MES) ? 'El día que cobras' : 'Lo mensual va de ese día al anterior'}</span></div><div class="ir">›</div></div></div>` : ''}`,
     apariencia: `<div class="tarjeta">${seg('jTema', [['auto', 'Automático'], ['claro', '☀️ Claro'], ['oscuro', '🌙 Oscuro']], temaActual())}</div>
       ${nota('Automático: igual que tu móvil.')}`,
     ingresos: `<div class="tarjeta lista" id="jIngresos">${ingresos.map(it => fila(it, 'ingreso')).join('')}<button class="anadir" id="jAddIng">＋ Añadir ingreso</button></div>
@@ -2094,6 +2181,7 @@ function vistaAjustes() {
         el.onblur = e => { if (!e.target.value.trim()) e.target.value = D.nombre; };
       });
       si('jTema', () => segmento('jTema', v => { aplicarTema(v); pintarApp(); }));
+      si('jDiaMes', el => el.onclick = hojaDiaMes);
       si('jPeriodo', () => segmento('jPeriodo', v => { if (v !== D.periodo) cambiarPeriodo(v); }));
       si('jSobra', () => segmento('jSobra', v => {
         if (v === D.sobrante) return;
@@ -2126,6 +2214,33 @@ function vistaAjustes() {
       si('jGuiaAP', el => el.onclick = hojaGuiaApplePay);
     }
   };
+}
+
+// Cambiar el día en que empieza «tu mes» (el día que cobras): se recalcula todo con el nuevo día
+function hojaDiaMes() {
+  let dia = DIA_MES;
+  const cobro = D.ingresos.filter(x => x.frec === 'mes' && !x.hasta).sort((a, b) => b.importe - a.importe)[0];
+  abrirHoja(() => ({
+    html: `<h2>📅 ¿Qué día empieza tu mes?</h2>
+      <p class="ayuda">Normalmente, el día que cobras. Lo mensual (ingresos y gastos fijos) se reparte desde ese día hasta el día antes del mes siguiente.</p>
+      <div class="tarjeta"><div class="paso-dia"><span>Día</span><div class="ctrl"><button id="dMenos" aria-label="Un día menos">−</button><b id="dDia">${dia}</b><button id="dMas" aria-label="Un día más">+</button></div></div>
+        ${cobro ? `<div class="nota" style="margin-top:10px">${esc(cobro.nombre)} te llega el día ${cobro.dia}.</div>` : ''}</div>
+      <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      const ver = () => { $('dDia').textContent = dia; };
+      $('dMenos').onclick = () => { dia = dia > 1 ? dia - 1 : 31; ver(); };
+      $('dMas').onclick = () => { dia = dia < 31 ? dia + 1 : 1; ver(); };
+      $('hGuardar').onclick = () => {
+        if (dia === DIA_MES) return cerrarHoja();
+        // Los ahorros para gastar por meses: se vuelve a repartir el total hasta la misma fecha
+        if (D.periodo === 'mes' && D.ahorro && D.ahorro.modo === 'gastar') {
+          const t = tramosAhorro(D); D.ahorro.importe = r2(t.reduce((s, x) => s + sumaTramo(x, 'mes'), 0)); delete D.repartoAhorro;
+        }
+        D.diaMes = dia; fijarDiaMes(D); movIni = null;
+        guardarDatos(); cerrarHoja(); aviso('Tu mes empieza el día ' + dia); pintarApp();
+      };
+    }
+  }));
 }
 
 // Pasar de semanas a meses (o al revés): se recalcula todo con el nuevo periodo
