@@ -3,9 +3,10 @@
 // - La página (index.html): primero intenta la versión nueva de internet; si no hay conexión, usa la guardada.
 // - Iconos y manifest: se usan los guardados.
 // Cuando subas una versión nueva a GitHub, cambia VERSION (ej: 'presu-v2') para renovar lo guardado.
-const VERSION = 'presu-v4';
+const VERSION = 'presu-v12';
 const ARCHIVOS = ['./', 'index.html', 'manifest.webmanifest',
-  'iconos/apple-touch-icon.png', 'iconos/icon-192.png', 'iconos/icon-512.png', 'iconos/icon-maskable-512.png'];
+  'iconos/apple-touch-icon.png', 'iconos/icon-192.png', 'iconos/icon-512.png', 'iconos/icon-maskable-512.png',
+  'img/ejemplo-automatizacion.jpg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
