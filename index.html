@@ -128,6 +128,7 @@ input[type=date].texto{min-height:52px}
 .copia-aviso .txt small{display:block;color:var(--sub);font-size:12.5px;font-weight:500;margin-top:1px}
 .copia-aviso .mini-b{flex:none;padding:9px 16px}
 .copia-aviso .cerrar{border:0;background:none;color:var(--sub);font-size:15px;padding:8px 2px 8px 4px;flex:none}
+.hoja input.importe.ah-peq{font-size:38px;margin:4px 0 6px}
 .bienvenida .privado{margin:22px auto 0;max-width:300px;font-size:13px;line-height:1.45;color:var(--sub);text-align:center}
 .grande{font-size:56px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;line-height:1.05}
 .pos{color:var(--verde)}.neg{color:var(--rojo)}
@@ -1118,7 +1119,7 @@ const cuotaEn = (tramos, p, P) => { let c = 0; tramos.forEach(t => { if (t.desde
 // para gastar, en céntimos exactos. Si se cambia la fecha en Ajustes, lo ya repartido se queda y lo que queda se reparte desde ese periodo.
 function tramosInicial(d) {
   if (d.inicial == null || !d.inicialHasta) return [];
-  if (d.repartoInicial && d.repartoInicial.length) return d.repartoInicial;
+  if (d.repartoInicial) return d.repartoInicial;
   const P = d.periodo, primero = inicioPeriodo(d.creado, P), ultimo = inicioPeriodo(d.inicialHasta < d.creado ? d.creado : d.inicialHasta, P);
   return [{ desde: primero, ultimo, n: Math.max(1, contarPeriodos(primero, ultimo, P)), total: r2(d.inicial) }];
 }
@@ -1196,7 +1197,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
   const hucha = a && a.modo === 'hucha' ? a.importe - d.movimientos.filter(x => x.hucha).reduce((s, x) => s + x.importe, 0) : null;
   // Ahorros «para gastar»: lo que aún queda por repartir
   let gastarQueda = null;
-  if (a && a.modo === 'gastar') {
+  if (tramos.length) {   // (también con hucha: «para gastar» y hucha pueden ir a la vez)
     gastarQueda = 0;
     const fin = tramos.reduce((m, t) => t.ultimo > m ? t.ultimo : m, '');
     for (let p = siguientePeriodo(actual, P); p <= fin; p = siguientePeriodo(p, P)) gastarQueda += r2(cuotaEn(tramos, p, P));
@@ -2113,8 +2114,8 @@ function vistaResumen() {
     const usado = a.importe - c.hucha;
     ahorros.push(['🐷', 'Hucha', usado > 0 ? 'Has usado ' + eur(usado) + ' de ' + eur(a.importe) : 'Para imprevistos', eur(c.hucha)]);
   }
-  if (c.inicialQueda !== null && c.inicialQueda > 0) ahorros.push(['💳', 'Lo que tenías al empezar', 'Se reparte hasta el ' + fechaCorta(D.inicialHasta) + ' ' + D.inicialHasta.slice(0, 4), eur(c.inicialQueda)]);
-  if (c.gastarQueda !== null) ahorros.push(['💸', 'Ahorros para gastar', 'Se reparten hasta el ' + fechaCorta(a.hasta) + ' ' + a.hasta.slice(0, 4), eur(c.gastarQueda)]);
+  const ig = infoGastar(c), porRepartir = r2((c.gastarQueda || 0) + (D.inicialHasta ? c.inicialQueda || 0 : 0));
+  if (porRepartir > 0) ahorros.push(['💸', 'Para gastar', 'Se reparte hasta el ' + fechaLarga(ig.hasta), eur(porRepartir)]);
 
   // Deberías tener
   const saldos = D.cuentas.map(k => ({ k, s: saldoCuenta(k) }));
@@ -2730,10 +2731,11 @@ function vistaAjustes() {
   const fila = (it, t) => `<div class="mov" data-t="${t}" data-id="${it.id}"><div class="ico">${it.emoji}</div>
     <div class="txt"><b>${esc(it.nombre)}</b><span>${esc(descFijo(it))}</span></div><div class="ir">›</div></div>`;
   const ingresos = D.ingresos.filter(activo), fijos = D.fijos.filter(activo);
-  const quedaAhorro = !a ? 0 : a.modo === 'hucha' ? c.hucha : r2(c.deAhorros + c.gastarQueda);
-  const descAhorro = !a ? 'No tienes ahorros puestos'
-    : a.modo === 'hucha' ? 'En la hucha · te quedan ' + eur(quedaAhorro)
-    : 'Para gastar · te quedan ' + eur(quedaAhorro) + ' hasta el ' + fechaCorta(a.hasta) + (a.hasta.slice(0, 4) !== hoyIso().slice(0, 4) ? ' de ' + a.hasta.slice(0, 4) : '');
+  const ig = infoGastar(c), conHucha = c.hucha !== null;
+  const partesAh = [];
+  if (conHucha) partesAh.push('🐷 Hucha ' + eur(c.hucha));
+  if (ig.queda > 0) partesAh.push('💸 Para gastar ' + eur(ig.queda) + ' hasta el ' + fechaLarga(ig.hasta));
+  const descAhorro = partesAh.length ? partesAh.join(' · ') : 'No tienes ahorros puestos';
   const nota = t => `<p class="nota" style="margin:8px 6px 0">${t}</p>`;
   const resumenLista = (l, uno, varios) => !l.length ? 'Ninguno' : l.length === 1
     ? eur(l[0].importe) + (l[0].frec === 'mes' ? ' al mes' : ' a la semana') + ' · ' + l[0].nombre : l.length + ' ' + varios;
@@ -2743,7 +2745,7 @@ function vistaAjustes() {
     const resumen = {
       ingresos: resumenLista(ingresos, 'ingreso', 'ingresos'),
       fijos: resumenLista(fijos, 'gasto', 'gastos'),
-      ahorros: !a ? 'No tienes' : a.modo === 'hucha' ? 'Hucha · ' + eur(quedaAhorro) : 'Para gastar · te quedan ' + eur(quedaAhorro),
+      ahorros: [conHucha ? 'Hucha ' + eur(c.hucha) : '', ig.queda > 0 ? 'Para gastar ' + eur(ig.queda) : ''].filter(Boolean).join(' · ') || 'No tienes',
       cuentas: D.cuentas.map(k => k.nombre).join(', '),
       categorias: D.categorias.length + ' categorías'
     };
@@ -2759,8 +2761,6 @@ function vistaAjustes() {
           ${seg('jPeriodo', [['semana', 'Por semanas'], ['mes', 'Por meses']], D.periodo)}
           <div class="etq">🎯 Lo que te sobre ${mes ? 'un mes' : 'una semana'} va</div>
           ${seg('jSobra', [['siguiente', mes ? 'Al mes siguiente' : 'A la siguiente'], ['ahorro', 'Al ahorro']], D.sobrante)}
-          ${D.inicialHasta ? `<button class="aj-dia" id="jInicial"><span>💳 Lo que tenías dura hasta el <b>${fechaCorta(D.inicialHasta)}</b></span><span class="ir">›</span></button>`
-            : !hayIngresoMensual(D) && D.inicial > 0 ? `<button class="aj-dia" id="jInicial"><span>💳 ¿Hasta cuándo te dura lo que tenías?</span><span class="ir">›</span></button>` : ''}
           ${conDia ? `<button class="aj-dia" id="jDiaMes"><span>🗓️ Tu mes empieza el día <b>${DIA_MES}</b></span><span class="ir">›</span></button>` : ''}
         </div>
         <div class="sec-tit">Tu dinero</div>
@@ -2817,10 +2817,10 @@ function vistaAjustes() {
       ${nota('Si cambias una cantidad, cuenta desde hoy: lo de antes no cambia. Para cambiarlo solo una vez, hazlo desde Movimientos.')}`,
     fijos: `<div class="tarjeta lista" id="jFijos">${fijos.map(it => fila(it, 'fijo')).join('')}<button class="anadir" id="jAddFijo">＋ Añadir gasto fijo</button></div>
       ${nota('Si cambias una cantidad, cuenta desde hoy: lo de antes no cambia. Para cambiarlo solo una vez, hazlo desde Movimientos.')}`,
-    ahorros: `<div class="tarjeta lista"><div class="mov" id="jAhorro"><div class="ico">${!a ? '🙅' : a.modo === 'hucha' ? '🐷' : '💸'}</div>
+    ahorros: `<div class="tarjeta lista"><div class="mov" id="jAhorro"><div class="ico">${conHucha ? '🐷' : ig.queda > 0 ? '💸' : '🙅'}</div>
         <div class="txt"><b>Tus ahorros</b><span style="white-space:normal">${esc(descAhorro)}</span></div><div class="ir">›</div></div></div>
       ${a && a.porCuenta && Object.keys(a.porCuenta).length > 1 ? nota('Lo tienes en: ' + Object.entries(a.porCuenta).map(([id, x]) => esc(nombreCta(id)) + ' ' + eur(x)).join(' · ')) : ''}
-      ${a && a.modo === 'gastar' ? nota('Se reparten a partes iguales hasta esa fecha: cada ' + (mes ? 'mes' : 'semana') + ' se suma un trozo a lo que puedes gastar. Por eso lo que queda va bajando.') : ''}`,
+      ${ig.queda > 0 ? nota('Lo de «para gastar» se reparte a partes iguales hasta esa fecha: cada ' + (mes ? 'mes' : 'semana') + ' se suma un trozo a lo que puedes gastar. Por eso lo que queda va bajando.') : ''}`,
     cuentas: `<div class="tarjeta lista" id="jCuentas">${D.cuentas.map(k => `<div class="mov" data-id="${k.id}"><div class="ico">${k.emoji}</div>
         <div class="txt"><b>${esc(k.nombre)}</b>${k.saldo != null ? `<span>Saldo puesto el ${fechaCorta(k.saldoFecha)}</span>` : ''}</div><div class="ir">›</div></div>`).join('')}
         <button class="anadir" id="jAddCta">＋ Añadir cuenta</button></div>
@@ -2947,10 +2947,10 @@ function hojaDiaMes() {
       $('hGuardar').onclick = () => {
         if (dia === DIA_MES) return cerrarHoja();
         // Por meses, los ahorros repartidos se vuelven a repartir con los meses nuevos
-        const rehacer = D.periodo === 'mes' ? prepararReparto() : null;
+        const rehacer = D.periodo === 'mes' ? prepararReparto() : null, rehacerIni = D.periodo === 'mes' ? prepararInicial() : null;
         D.diaMes = dia; fijarDiaMes(D); movIni = null;
         if (rehacer) rehacer();
-        if (D.periodo === 'mes') delete D.repartoInicial;
+        if (rehacerIni) rehacerIni();
         guardarDatos(); cerrarHoja(); aviso('Tu mes empieza el día ' + dia); pintarApp();
       };
     }
@@ -2973,11 +2973,35 @@ function prepararReparto() {
   };
 }
 
+// Lo mismo con «lo que tenías al empezar» repartido hasta una fecha: lo que quede en total se vuelve a repartir hasta la misma fecha
+function prepararInicial() {
+  const P = D.periodo, t = tramosInicial(D);
+  if (!t.length) return () => {};
+  const total = r2(t.reduce((s, x) => s + sumaTramo(x, P), 0));
+  const finDia = finPeriodo(t.reduce((m, x) => x.ultimo > m ? x.ultimo : m, ''), P);
+  return () => {
+    const desde = inicioPeriodo(D.creado, D.periodo), ultimo = inicioPeriodo(finDia, D.periodo);
+    D.repartoInicial = total > 0 && ultimo >= desde ? [{ desde, ultimo, n: contarPeriodos(desde, ultimo, D.periodo), total }] : [];
+  };
+}
+// «Para gastar»: lo que queda por repartir (contando este periodo) y hasta cuándo. Junta los ahorros para gastar y,
+// si no cobras cada mes, lo que tenías al empezar (son lo mismo para ti: dinero que se reparte hasta una fecha).
+function infoGastar(c) {
+  const a = D.ahorro, ini = !!D.inicialHasta;
+  const deIni = ini ? r2((c.inicialQueda || 0) + (c.deInicio || 0)) : 0;
+  const deAho = r2((c.gastarQueda || 0) + (c.deAhorros || 0));
+  let hasta = '';
+  if (deIni > 0) hasta = D.inicialHasta;
+  if (deAho > 0) { const f = D.gastarHasta || (a && a.modo === 'gastar' ? a.hasta : '') || finPeriodo(tramosAhorro(D).reduce((m, x) => x.ultimo > m ? x.ultimo : m, ''), D.periodo); if (f > hasta) hasta = f; }
+  return { queda: r2(deIni + deAho), hasta };
+}
+const fechaLarga = f => fechaCorta(f) + (f.slice(0, 4) !== hoyIso().slice(0, 4) ? ' de ' + f.slice(0, 4) : '');
 // Pasar de semanas a meses (o al revés): se recalcula todo con el nuevo periodo
 function cambiarPeriodo(v) {
   if (!confirm(v === 'mes' ? '¿Ver tu dinero por meses? Se recalcula todo por meses.' : '¿Ver tu dinero por semanas? Se recalcula todo por semanas (lo mensual se reparte entre las semanas).')) return pintarApp();
   const rehacer = prepararReparto();
-  D.periodo = v; movIni = null; rehacer(); delete D.repartoInicial; guardarDatos();
+  const rehacerIni = prepararInicial();
+  D.periodo = v; movIni = null; rehacer(); rehacerIni(); guardarDatos();
   aviso(v === 'mes' ? 'Ahora lo ves por meses' : 'Ahora lo ves por semanas'); pintarApp();
 }
 
@@ -3050,49 +3074,85 @@ function hojaItem(tipo, orig) {
   }));
 }
 
+// Ahorros: hucha y «para gastar» a la vez, cada uno con su cantidad. Lo que cambies cuenta desde este periodo.
+// «Para gastar» incluye lo que tenías al empezar si no cobras cada mes (D.inicialHasta): se cambia en el mismo sitio, sin contarlo dos veces.
 function hojaAhorro() {
-  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), a = D.ahorro;
-  const E = { modo: a ? a.modo : 'nada', cuenta: cuentaApp(a && a.cuenta),
-    importe: !a ? '' : fmtImporte(a.modo === 'hucha' ? c.hucha : r2(c.deAhorros + c.gastarQueda)), hasta: a && a.hasta && a.hasta > h ? a.hasta : '' };
-  // Varias cuentas: cuánto hay en cada una (si lo de antes ya no cuadra con lo que queda, se pone todo en la cuenta principal)
-  const varias = D.cuentas.length > 1;
-  E.porCuenta = a && a.porCuenta && sumaPorCuenta(a.porCuenta) === r2(num(E.importe) || 0) ? Object.assign({}, a.porCuenta)
-    : (num(E.importe) > 0 ? { [E.cuenta]: r2(num(E.importe)) } : {});
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), a = D.ahorro, mes = P === 'mes';
+  const varias = D.cuentas.length > 1, ig0 = infoGastar(c), rapidas = fechasRapidas();
+  const huchaAhora = c.hucha !== null ? r2(c.hucha) : 0;
+  const E = { cuenta: cuentaApp(a && a.cuenta), hucha: huchaAhora ? fmtImporte(huchaAhora) : '', gastar: ig0.queda > 0 ? fmtImporte(ig0.queda) : '',
+    hasta: ig0.hasta && ig0.hasta > h ? ig0.hasta : '' };
+  E.otra = E.hasta && !rapidas.some(([, f]) => f === E.hasta);
+  E.porCuenta = a && a.modo === 'hucha' && a.porCuenta && sumaPorCuenta(a.porCuenta) === huchaAhora ? Object.assign({}, a.porCuenta)
+    : (huchaAhora > 0 ? { [E.cuenta]: huchaAhora } : {});
+  const nG = () => { const n = num(E.gastar); return n > 0 ? r2(n) : 0; };
+  const notaGastar = () => {
+    const g = nG();
+    if (!g) return 'Si no tienes dinero para repartir, déjalo en 0.';
+    if (!(E.hasta > h)) return 'Elige hasta cuándo te tiene que durar.';
+    const n = Math.max(1, contarPeriodos(act, inicioPeriodo(E.hasta, P), P));
+    return `Desde ${mes ? 'este mes' : 'esta semana'}: unos <b>${eur(parteDe(g, n, 0))}</b> ${mes ? 'al mes' : 'a la semana'} hasta el ${fechaLarga(E.hasta)}. Lo de antes no cambia.`;
+  };
   abrirHoja(() => ({
-    html: `<h2>🐷 Ahorros</h2>
-      <p class="ayuda">El dinero que tienes guardado. Lo que cambies cuenta desde ${P === 'mes' ? 'este mes' : 'esta semana'}.</p>
-      ${seg('aModo', [['nada', 'No tengo'], ['gastar', '💸 Para gastar'], ['hucha', '🐷 Hucha']], E.modo)}
-      ${E.modo === 'nada' ? '' : `<div class="tarjeta" style="margin-top:14px">
-        <div class="etq" style="margin-top:0;text-align:center">${E.modo === 'hucha' ? '¿Cuánto hay en la hucha?' : '¿Cuánto te queda para repartir?'}</div>
+    html: `<h2>Tus ahorros</h2>
+      <p class="ayuda">Puedes tener las dos cosas a la vez. Lo que cambies cuenta desde ${mes ? 'este mes' : 'esta semana'}.</p>
+      <div class="etq">🐷 Hucha · no se toca</div>
+      <div class="tarjeta">
         ${varias ? filasAhorroCuentas(D.cuentas, E.porCuenta)
-          : `<input id="aImpA" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.importe)}">`}
-        ${E.modo === 'gastar' ? `<div class="etq">¿Hasta cuándo quieres que te dure?</div>
-          <input id="aHasta" class="texto campo" type="date" min="${masDias(h, 1)}" value="${E.hasta}">` : `<div class="nota" style="text-align:center">No cuenta para gastar. Si hay un imprevisto, al apuntar un gasto podrás pagar con la hucha.</div>`}
-      </div>`}
+          : `<input id="aHucha" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.hucha)}">`}
+        <div class="nota" style="text-align:center">Para imprevistos: no cuenta para gastar, pero al apuntar un gasto podrás pagar con la hucha.</div>
+      </div>
+      <div class="etq">💸 Para gastar · se reparte ${mes ? 'cada mes' : 'cada semana'}</div>
+      <div class="tarjeta">
+        <div class="sub" style="text-align:center;color:var(--sub);font-size:14px">¿Cuánto te queda por repartir?</div>
+        <input id="aGastar" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.gastar)}">
+        <div class="etq" style="margin-top:6px">¿Hasta cuándo te tiene que durar?</div>
+        <div class="chips" id="aRap">${rapidas.map(([t, f]) => `<button class="chip ${!E.otra && E.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
+          <button class="chip ${E.otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
+        ${E.otra ? `<input id="aHasta" class="texto campo" type="date" min="${masDias(h, 1)}" value="${E.hasta}" style="margin-top:10px">` : ''}
+        <div class="nota" id="aNotaG" style="margin-top:12px">${notaGastar()}</div>
+      </div>
       <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
     montar() {
-      segmento('aModo', v => { if (v !== E.modo) { E.modo = v; E.importe = ''; E.porCuenta = {}; pintarHoja(); } });
-      if ($('aImpA')) $('aImpA').oninput = e => { E.importe = e.target.value; };
+      if ($('aHucha')) $('aHucha').oninput = e => { E.hucha = e.target.value; };
       if (varias) montarAhorroCuentas(E.porCuenta, () => { E.cuenta = cuentaMayor(E.porCuenta, E.cuenta); });
-      if ($('aHasta')) $('aHasta').onchange = e => { E.hasta = e.target.value; };
+      $('aGastar').oninput = e => { E.gastar = e.target.value; $('aNotaG').innerHTML = notaGastar(); };
+      $('aRap').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+        if (b.dataset.f === 'otra') { E.otra = true; pintarHoja(); if ($('aHasta')) $('aHasta').focus(); return; }
+        E.otra = false; E.hasta = b.dataset.f; pintarHoja();
+      });
+      if ($('aHasta')) $('aHasta').onchange = e => { E.hasta = e.target.value; $('aNotaG').innerHTML = notaGastar(); };
       $('hGuardar').onclick = () => {
-        const n = varias ? sumaPorCuenta(E.porCuenta) : num(E.importe);
-        if (E.modo !== 'nada' && (varias ? !(n > 0) : !(n >= 0))) return aviso(varias ? 'Escribe cuánto tienes en cada cuenta' : 'Escribe la cantidad');
-        if (E.modo === 'gastar' && !(E.hasta > h)) return aviso('Elige hasta cuándo (una fecha futura)');
-        // Lo ya repartido en periodos anteriores se queda igual; lo nuevo empieza en este periodo
-        const ant = periodoAnterior(act, P);
-        const tramos = tramosAhorro(D).map(t => Object.assign({}, t, { ultimo: t.ultimo < act ? t.ultimo : ant })).filter(t => t.ultimo >= t.desde);
-        if (E.modo === 'gastar') {
-          const ultimo = inicioPeriodo(E.hasta, P);
-          tramos.push({ desde: act, ultimo, n: Math.max(1, contarPeriodos(act, ultimo, P)), total: r2(n) });
+        const hucha = varias ? sumaPorCuenta(E.porCuenta) : (num(E.hucha) > 0 ? r2(num(E.hucha)) : 0);
+        if (!varias && String(E.hucha).trim() && isNaN(num(E.hucha))) return aviso('Revisa la cantidad de la hucha');
+        if (String(E.gastar).trim() && isNaN(num(E.gastar))) return aviso('Revisa la cantidad para gastar');
+        const g = nG();
+        if (g > 0 && !(E.hasta > h)) return aviso('Elige hasta cuándo te tiene que durar');
+        // 1) Para gastar: solo si ha cambiado la cantidad o la fecha. Lo de periodos anteriores se queda igual.
+        const cambiaGastar = g !== r2(ig0.queda) || (g > 0 && E.hasta !== ig0.hasta);
+        const trAho = tramosAhorro(D);   // antes de tocar D.ahorro (los ahorros «para gastar» antiguos salen de ahí)
+        if (cambiaGastar) {
+          const ant = periodoAnterior(act, P);
+          const cortar = tr => tr.filter(t => t.desde <= ant).map(t => Object.assign({}, t, { ultimo: t.ultimo > ant ? ant : t.ultimo }));
+          const ultimo = g > 0 ? inicioPeriodo(E.hasta, P) : '';
+          const nuevo = g > 0 ? [{ desde: act, ultimo, n: Math.max(1, contarPeriodos(act, ultimo, P)), total: g }] : [];
+          if (D.inicialHasta) {   // va con «lo que tenías al empezar» (así no hay dos repartos)
+            D.repartoInicial = cortar(tramosInicial(D)).concat(nuevo);
+            if (g > 0) D.inicialHasta = E.hasta;
+            D.repartoAhorro = cortar(trAho); delete D.gastarHasta;
+          } else {
+            D.repartoAhorro = cortar(trAho).concat(nuevo);
+            if (g > 0) D.gastarHasta = E.hasta; else delete D.gastarHasta;
+          }
+        } else if (a && a.modo === 'gastar') {   // no cambia, pero el ahorro pasa a guardarse como reparto (para poder tener hucha a la vez)
+          D.repartoAhorro = trAho; D.gastarHasta = a.hasta;
         }
-        D.repartoAhorro = tramos;
-        if (E.modo === 'nada') D.ahorro = null;
-        else if (E.modo === 'hucha') {
+        // 2) Hucha
+        if (hucha > 0) {
           const usado = D.movimientos.filter(m => m.hucha).reduce((s, m) => s + m.importe, 0);
-          D.ahorro = { importe: r2(n + usado), modo: 'hucha', hasta: '', cuenta: E.cuenta };   // así te quedan justo los n €
-        } else D.ahorro = { importe: r2(n), modo: 'gastar', hasta: E.hasta, cuenta: E.cuenta };
-        if (D.ahorro && varias) D.ahorro.porCuenta = Object.assign({}, E.porCuenta);
+          D.ahorro = { importe: r2(hucha + usado), modo: 'hucha', hasta: '', cuenta: E.cuenta };   // así te quedan justo esos €
+          if (varias) D.ahorro.porCuenta = Object.assign({}, E.porCuenta);
+        } else D.ahorro = null;
         guardarDatos(); cerrarHoja(); aviso('Guardado ✓'); pintarApp();
       };
     }
