@@ -121,6 +121,13 @@ input[type=date].texto{min-height:52px}
 .plan-luego{margin-top:14px;display:flex;flex-direction:column;gap:3px}
 .plan-luego span{color:var(--sub);font-size:14.5px}
 .plan-luego b{font-size:18px;font-weight:700}
+.enlace-copia{display:block;margin:14px auto 0;border:0;background:none;color:var(--acento);font-weight:600;font-size:15px;padding:8px}
+.copia-aviso{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px}
+.copia-aviso .deu-ico{font-size:20px;flex:none}
+.copia-aviso .txt{flex:1;min-width:0;font-size:15px;font-weight:600}
+.copia-aviso .txt small{display:block;color:var(--sub);font-size:12.5px;font-weight:500;margin-top:1px}
+.copia-aviso .mini-b{flex:none;padding:9px 16px}
+.copia-aviso .cerrar{border:0;background:none;color:var(--sub);font-size:15px;padding:8px 2px 8px 4px;flex:none}
 .bienvenida .privado{margin:22px auto 0;max-width:300px;font-size:13px;line-height:1.45;color:var(--sub);text-align:center}
 .grande{font-size:56px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;line-height:1.05}
 .pos{color:var(--verde)}.neg{color:var(--rojo)}
@@ -534,7 +541,7 @@ function puedeSeguir(id) {
     if (B.tieneAhorro !== true || !(B.ahorro.importe > 0) || !B.ahorro.modo) return false;
     return B.ahorro.modo === 'hucha' || (B.ahorro.hasta && B.ahorro.hasta > hoyIso());
   }
-  if (id === 'saldos') return B.cuentas.every(c => isFinite((B.saldos || {})[c.id]));
+  if (id === 'saldos') return B.cuentas.every(c => isFinite((B.saldos || {})[c.id])) && (!pideHasta() || (B.inicialHasta && B.inicialHasta > hoyIso()));
   if (id === 'sobrante') return !!B.sobrante;
   return true;
 }
@@ -549,7 +556,8 @@ function porQueNo(id) {
   }
   if (id.startsWith('ingreso:')) return id === 'ingreso:otro' && !(B.ingresos.otro.nombre || '').trim() ? 'Ponle un nombre' : 'Escribe la cantidad';
   if (id === 'fijos') return 'Pon nombre y cantidad a cada gasto (o quítalo con ✕)';
-  if (id === 'saldos') return B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)';
+  if (id === 'saldos') return !B.cuentas.every(c => isFinite((B.saldos || {})[c.id])) ? (B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)')
+    : 'Elige hasta cuándo te tiene que durar';
   if (id === 'ahorro') {
     if (B.tieneAhorro !== true) return 'Elige una opción';
     if (!B.ahorro.modo) return 'Dinos si te lo puedes gastar';
@@ -574,8 +582,10 @@ const PANTALLAS = {
     clase: 'bienvenida', sinArriba: true,
     html: `${LOGO}<h1>Hola 👋<br>Esto es Pre$u</h1>
       <p class="ayuda">Vamos a montar tu presupuesto en un minuto. Todo se queda en tu móvil y podrás cambiarlo cuando quieras.</p>
-      <p class="privado">🔒 Sin registro ni cuentas. Lo que pongas no sale de tu móvil: nadie lo ve, ni siquiera nosotros.</p>`,
-    boton: 'Empezar'
+      <p class="privado">🔒 Sin registro ni cuentas. Lo que pongas no sale de tu móvil: nadie lo ve, ni siquiera nosotros.</p>
+      <button class="enlace-copia" id="bRecuperar">¿Ya usabas Pre$u? Recupera tu copia</button>`,
+    boton: 'Empezar',
+    alMontar() { $('bRecuperar').onclick = elegirCopia; }
   }),
 
   nombre: () => ({
@@ -725,11 +735,7 @@ const PANTALLAS = {
 
   ahorro: () => {
     const a = B.ahorro;
-    const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
-    const finCurso = (m >= 7 ? y + 1 : y) + '-06-30', finAno = y + '-12-31';
-    const en6 = (() => { const d = new Date(); d.setMonth(d.getMonth() + 6); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
-    const en12 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
-    const rapidas = [['Fin de curso', finCurso], ['Fin de año', finAno], ['En 6 meses', en6], ['En 1 año', en12]].filter(([, f]) => f > hoyIso());
+    const rapidas = fechasRapidas();
     // Varias cuentas: cuánto hay en cada una (se quitan las cuentas que ya no existen)
     const varias = B.cuentas.length > 1;
     if (varias) {
@@ -811,10 +817,27 @@ const PANTALLAS = {
           : `<div class="sub" style="text-align:center;color:var(--sub);font-size:14px">${emojiCuenta(uno.nombre)} ${esc(uno.nombre.trim())}</div>
             <input id="sImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${val(uno.id)}">`}
         </div>
-        <p class="nota" id="sNota" style="margin:12px 4px 0">${notaSaldos()}</p>`,
+        <p class="nota" id="sNota" style="margin:12px 4px 0">${notaSaldos()}</p>
+        <div id="sHasta">${bloqueHasta()}</div>`,
       alMontar() {
         const poner = (id, v) => { const n = num(v); if (isFinite(n)) B.saldos[id] = r2(n); else delete B.saldos[id]; };
-        const cambio = () => { guardarBorrador(); actualizarBoton(); if ($('sTotal')) $('sTotal').textContent = eur(totalSaldos()); $('sNota').innerHTML = notaSaldos(); };
+        // «¿Hasta cuándo?» aparece o desaparece mientras escribe (sin volver a pintar: no se cierra el teclado)
+        const montarHasta = () => {
+          if (!$('hRapidas')) return;
+          $('hRapidas').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+            if (c.dataset.f === 'otra') { B.inicialHasta = ''; B.inicialOtra = true; }
+            else { B.inicialHasta = c.dataset.f; B.inicialOtra = false; }
+            guardarBorrador(); $('sHasta').innerHTML = bloqueHasta(); montarHasta(); $('sNota').innerHTML = notaSaldos(); actualizarBoton();
+            if (c.dataset.f === 'otra') $('hFecha').focus();
+          });
+          $('hFecha').onchange = e => { B.inicialHasta = e.target.value; guardarBorrador(); $('sNota').innerHTML = notaSaldos(); actualizarBoton(); };
+        };
+        let habia = pideHasta();
+        const cambio = () => {
+          guardarBorrador(); actualizarBoton(); if ($('sTotal')) $('sTotal').textContent = eur(totalSaldos()); $('sNota').innerHTML = notaSaldos();
+          if (pideHasta() !== habia) { habia = pideHasta(); $('sHasta').innerHTML = bloqueHasta(); montarHasta(); }
+        };
+        montarHasta();
         if (varias) document.querySelectorAll('.s-imp').forEach(i => i.oninput = () => { poner(i.dataset.id, i.value); cambio(); });
         else $('sImporte').oninput = e => { poner(uno.id, e.target.value); cambio(); };
         const primero = $('sImporte') || document.querySelector('.s-imp');
@@ -833,7 +856,8 @@ const PANTALLAS = {
     const r1 = calcular(d, h, p1), normal = r2(r1.entra + r1.deInicio + r1.deAhorros - r1.fijos);
     const cobro = conCobro && d.ingresos.some(x => x.frec === 'mes' && x.dia === d.diaMes) && (mes || primerCicloSem(d) === c0);
     const filas = [];
-    if (c.deInicio) filas.push([c.ciclo && c.ciclo.arranque && c.ciclo.n > 1 ? `Lo que tienes ahora (${eur(d.inicial)} entre ${c.ciclo.n} semanas)` : 'Lo que tienes ahora', '+' + eur(c.deInicio)]);
+    if (c.deInicio) filas.push([d.inicialHasta ? `Lo que tienes ahora (${eur(d.inicial)} hasta el ${fechaCorta(d.inicialHasta)})`
+      : c.ciclo && c.ciclo.arranque && c.ciclo.n > 1 ? `Lo que tienes ahora (${eur(d.inicial)} entre ${c.ciclo.n} semanas)` : 'Lo que tienes ahora', '+' + eur(c.deInicio)]);
     if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
     if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
     if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
@@ -862,19 +886,47 @@ const PANTALLAS = {
     };
   }
 };
+// Fechas para «¿Hasta cuándo?» (ahorros para gastar y lo que tienes si no cobras cada mes)
+function fechasRapidas() {
+  const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
+  const finCurso = (m >= 7 ? y + 1 : y) + '-06-30', finAno = y + '-12-31';
+  const en6 = (() => { const d = new Date(); d.setMonth(d.getMonth() + 6); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
+  const en12 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
+  return [['Fin de curso', finCurso], ['Fin de año', finAno], ['En 6 meses', en6], ['En 1 año', en12]].filter(([, f]) => f > hoyIso());
+}
+// Si no cobras cada mes, lo que tienes ahora (sin ahorros) se reparte hasta una fecha: hay que preguntarla
+const paraGastarAhora = () => r2(totalSaldos() - (B.tieneAhorro ? (B.ahorro.importe || 0) : 0));
+const pideHasta = () => !hayIngresoMensual(datosDelBorrador()) && Object.keys(B.saldos || {}).length > 0 && paraGastarAhora() > 0;
 const totalSaldos = () => r2(B.cuentas.reduce((t, c) => t + (isFinite((B.saldos || {})[c.id]) ? B.saldos[c.id] : 0), 0));
 // Debajo de «¿Cuánto tienes ahora?»: cuánto es para gastar y qué pasa con lo que toca hoy
+function bloqueHasta() {
+  if (!pideHasta()) return '';
+  const rapidas = fechasRapidas(), f = B.inicialHasta, otra = B.inicialOtra || (f && !rapidas.some(([, x]) => x === f));
+  return `<div class="etq">¿Hasta cuándo te tiene que durar?</div>
+    <div class="chips" id="hRapidas">${rapidas.map(([t, x]) => `<button class="chip ${!otra && f === x ? 'on' : ''}" data-f="${x}">${t}</button>`).join('')}
+      <button class="chip ${otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
+    <input id="hFecha" class="texto ${otra ? '' : 'oculto'}" type="date" min="${masDias(hoyIso(), 1)}" value="${otra && f ? f : ''}" style="margin-top:12px">`;
+}
 function notaSaldos() {
   const d = datosDelBorrador(), h = hoyIso(), total = totalSaldos(), aho = B.tieneAhorro ? (B.ahorro.importe || 0) : 0;
   fijarDiaMes(d);
-  const hasta = hayIngresoMensual(d) ? 'hasta que cobres (' + fechaCorta(cicloSiguiente(inicioCiclo(h))) + ')' : B.periodo === 'mes' ? 'este mes' : 'esta semana';
+  const cobra = hayIngresoMensual(d);
+  const hasta = cobra ? 'hasta que cobres (' + fechaCorta(cicloSiguiente(inicioCiclo(h))) + ')' : B.inicialHasta && B.inicialHasta > h ? 'hasta el ' + fechaCorta(B.inicialHasta) + ' ' + B.inicialHasta.slice(0, 4) : '';
   const hoyToca = [...d.ingresos.map(x => [x, '+']), ...d.fijos.map(x => [x, '−'])].filter(([x]) => fechasDe(x, h, h).length)
     .map(([x, sg]) => esc(x.nombre) + ' ' + sg + eur(x.importe));
   const partes = [];
-  if (Object.keys(B.saldos || {}).length) partes.push((aho ? 'De esto, ' + eur(aho) + ' son tus ahorros. ' : '') + 'Para gastar ' + hasta + ': <b>' + eur(Math.max(0, r2(total - aho))) + '</b>');
+  if (Object.keys(B.saldos || {}).length) {
+    let t = (aho ? 'De esto, ' + eur(aho) + ' son tus ahorros. ' : '') + 'Para gastar' + (hasta ? ' ' + hasta : '') + ': <b>' + eur(Math.max(0, r2(total - aho))) + '</b>';
+    // Sin cobro mensual: cuánto toca cada semana o mes
+    if (!cobra && hasta && total - aho > 0) {
+      const P = B.periodo === 'mes' ? 'mes' : 'semana', n = Math.max(1, contarPeriodos(inicioPeriodo(h, P), inicioPeriodo(B.inicialHasta, P), P));
+      t += ' · unos <b>' + eur(parteDe(r2(total - aho), n, 0)) + (P === 'mes' ? ' al mes' : ' a la semana') + '</b>';
+    }
+    partes.push(t);
+  }
   // ¿Mucho dinero? Puede que parte sean ahorros y no lo haya dicho
   const alMes = d.ingresos.reduce((t, x) => t + (x.frec === 'mes' ? x.importe : x.importe * 52 / 12), 0);
-  if (total - aho > Math.max(300, alMes * 1.5)) partes.push('¿Parte de esto son ahorros? Vuelve atrás y ponlo en «¿Tienes dinero ahorrado?», o te lo contaremos todo para gastar.');
+  if (cobra && total - aho > Math.max(300, alMes * 1.5)) partes.push('¿Parte de esto son ahorros? Vuelve atrás y ponlo en «¿Tienes dinero ahorrado?», o te lo contaremos todo para gastar.');
   if (hoyToca.length) partes.push('Lo que te toca hoy (' + hoyToca.join(', ') + ') cuenta como si ya hubiera pasado.');
   return partes.join('<br>');
 }
@@ -946,6 +998,8 @@ function datosDelBorrador() {
     diaMes: diaDeCobro(ingresos),   // tu mes empieza el día que cobras
     // Lo que tenías al empezar (sin tus ahorros): para gastar hasta que cobras
     inicial: conSaldo ? r2(Math.max(0, total - (B.tieneAhorro ? (B.ahorro.importe || 0) : 0))) : null,
+    // Si no cobras cada mes: lo que tienes se reparte hasta esta fecha
+    ...(!ingresos.some(x => x.frec === 'mes') && conSaldo && B.inicialHasta && B.inicialHasta > hoy ? { inicialHasta: B.inicialHasta } : {}),
     ingresos,
     fijos: B.fijos.map(x => ({ id: x.id, emoji: x.emoji, nombre: x.nombre.trim(), importe: r2(x.importe || 0), frec: x.frec, dia: 1, cuenta: cuentaValida(x.cuenta) })),
     ahorro: B.tieneAhorro ? { importe: r2(B.ahorro.importe || 0), modo: B.ahorro.modo, hasta: B.ahorro.modo === 'gastar' ? B.ahorro.hasta : '', cuenta: cuentaValida(B.ahorro.cuenta),
@@ -1060,6 +1114,14 @@ function cuotaTramo(t, p, P) {
   return (base + (i >= n - resto ? 1 : 0)) / 100;
 }
 const cuotaEn = (tramos, p, P) => { let c = 0; tramos.forEach(t => { if (t.desde <= p && p <= t.ultimo) c = cuotaTramo(t, p, P); }); return c; };
+// Lo que tenías al empezar, si elegiste hasta cuándo te tiene que durar (cuando no cobras cada mes): se reparte igual que los ahorros
+// para gastar, en céntimos exactos. Si se cambia la fecha en Ajustes, lo ya repartido se queda y lo que queda se reparte desde ese periodo.
+function tramosInicial(d) {
+  if (d.inicial == null || !d.inicialHasta) return [];
+  if (d.repartoInicial && d.repartoInicial.length) return d.repartoInicial;
+  const P = d.periodo, primero = inicioPeriodo(d.creado, P), ultimo = inicioPeriodo(d.inicialHasta < d.creado ? d.creado : d.inicialHasta, P);
+  return [{ desde: primero, ultimo, n: Math.max(1, contarPeriodos(primero, ultimo, P)), total: r2(d.inicial) }];
+}
 const sumaTramo = (t, P) => { let s = 0; for (let p = t.desde; p <= t.ultimo; p = siguientePeriodo(p, P)) s += cuotaTramo(t, p, P); return r2(s); };
 // «Lo que sobra» puede cambiarse en Ajustes: cuenta desde el periodo en que se cambió
 const sobranteEn = (d, p) => { let v = d.sobrante; (d.sobranteHist || []).forEach(x => { if (x.desde <= p) v = x.valor; }); return v; };
@@ -1093,6 +1155,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
   // Lo que tenías al empezar: para gastar hasta que cobras (si no cobras cada mes, para la primera semana)
   const c0 = inicioCiclo(d.creado), conCobro = hayIngresoMensual(d), inicial = d.inicial || 0;
   const cW = P === 'semana' ? primerCicloSem(d) : c0, repartirInicial = conCobro && cW === c0;
+  const trIni = tramosInicial(d);   // si eligió hasta cuándo le tiene que durar lo que tenía, manda esto
 
   let arrastre = 0, ahorrado = 0, res = null;
   for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
@@ -1105,11 +1168,12 @@ function calcular(d, hoy = hoyIso(), hasta) {
     } else {
       const c = cicloDeSemana(d, p), b = bolsa(c), n = Math.max(1, b.sem.length), i = Math.max(0, b.sem.indexOf(p));
       nSemanas = n;
-      ciclo = { ini: c, fin: finCiclo(c), n, arranque: d.inicial != null && conCobro && c === c0 };
+      ciclo = { ini: c, fin: finCiclo(c), n, arranque: d.inicial != null && conCobro && c === c0 && !trIni.length };
       entra = suma(semIng, ing, p, fin) + parteDe(b.entra, n, i);
       fijos = suma(semFij, fij, p, fin) + parteDe(b.fijos, n, i);
       if (repartirInicial ? c === c0 : p === primero) deInicio = repartirInicial ? parteDe(inicial, n, i) : inicial;
     }
+    if (trIni.length) deInicio = cuotaEn(trIni, p, P);
     entra = r2(entra); fijos = r2(fijos); deInicio = r2(deInicio);     // a céntimos, para que lo que se ve sume exacto
     const deAhorros = r2(cuotaEn(tramos, p, P));
     const movs = d.movimientos.filter(x => x.fecha >= p && x.fecha <= fin);
@@ -1138,7 +1202,15 @@ function calcular(d, hoy = hoyIso(), hasta) {
     for (let p = siguientePeriodo(actual, P); p <= fin; p = siguientePeriodo(p, P)) gastarQueda += r2(cuotaEn(tramos, p, P));
     gastarQueda = r2(gastarQueda);
   }
-  return Object.assign(res, { ahorrado: r2(ahorrado), hucha, pendientes, gastarQueda });
+  // Lo que tenías al empezar que aún queda por repartir (si elegiste hasta cuándo)
+  let inicialQueda = null;
+  if (trIni.length) {
+    inicialQueda = 0;
+    const fin = trIni.reduce((m, t) => t.ultimo > m ? t.ultimo : m, '');
+    for (let p = siguientePeriodo(actual, P); p <= fin; p = siguientePeriodo(p, P)) inicialQueda += r2(cuotaEn(trIni, p, P));
+    inicialQueda = r2(inicialQueda);
+  }
+  return Object.assign(res, { ahorrado: r2(ahorrado), hucha, pendientes, gastarQueda, inicialQueda });
 }
 
 // ---------- Estado de la app ----------
@@ -1277,6 +1349,8 @@ function vistaInicio() {
       <div class="desglose">${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
         ${hayMensual && c.ciclo ? `<div class="nota">${notaCiclo(c.ciclo)}</div>` : ''}</div>
     </div>
+    ${tocaCopia() ? `<div class="tarjeta copia-aviso"><span class="deu-ico">💾</span><span class="txt">Haz una copia de seguridad<small>${textoUltimaCopia()}</small></span>
+      <button class="mini-b si" id="iCopia">Hacer</button><button class="cerrar" id="iCopiaNo" aria-label="Ahora no">✕</button></div>` : ''}
     ${lineaDeudas()}
     <div class="tarjeta apuntar" id="fApuntar">
       <div class="tit-tarjeta">Apuntar</div>
@@ -1342,6 +1416,8 @@ function vistaInicio() {
       if ($('aHucha')) $('aHucha').onclick = () => { F.hucha = !F.hucha; pintarApp(); };
       $('bGuardar').onclick = guardarMovimiento;
       if ($('iDeudas')) $('iDeudas').onclick = hojaDeudas;
+      if ($('iCopia')) $('iCopia').onclick = hacerCopia;
+      if ($('iCopiaNo')) $('iCopiaNo').onclick = () => { D.copiaCallada = masDias(hoyIso(), DIAS_AVISO_COPIA); guardarDatos(); aviso('Te lo recordaremos en 2 semanas'); pintarApp(); };
       // Lo escrito en Apuntar pasa a la deuda (y al guardarla se vacía Apuntar: tu parte ya se apunta como gasto)
       if ($('bDividir')) $('bDividir').onclick = () => hojaNuevaDeuda({ importe: F.importe, desc: F.desc, cat: F.cat, cuenta: F.cuenta, fecha: F.fecha,
         alGuardar: () => { F = formVacio('gasto'); } });
@@ -2037,6 +2113,7 @@ function vistaResumen() {
     const usado = a.importe - c.hucha;
     ahorros.push(['🐷', 'Hucha', usado > 0 ? 'Has usado ' + eur(usado) + ' de ' + eur(a.importe) : 'Para imprevistos', eur(c.hucha)]);
   }
+  if (c.inicialQueda !== null && c.inicialQueda > 0) ahorros.push(['💳', 'Lo que tenías al empezar', 'Se reparte hasta el ' + fechaCorta(D.inicialHasta) + ' ' + D.inicialHasta.slice(0, 4), eur(c.inicialQueda)]);
   if (c.gastarQueda !== null) ahorros.push(['💸', 'Ahorros para gastar', 'Se reparten hasta el ' + fechaCorta(a.hasta) + ' ' + a.hasta.slice(0, 4), eur(c.gastarQueda)]);
 
   // Deberías tener
@@ -2545,6 +2622,90 @@ function hojaDeuda(x, volver) {
   });
 }
 
+// ---------- 💾 Copia de seguridad ----------
+// Los datos solo están en el móvil: la copia es un archivo .json con todo (D) que se guarda en Archivos o se envía.
+// Al recuperarla se cambia todo por la copia (antes se guarda lo que había en 'presu_antes_de_recuperar', por si acaso).
+const DIAS_AVISO_COPIA = 14;
+const esMovil = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+const diasDesde = f => Math.round((aUTC(hoyIso()) - aUTC(f)) / 864e5);
+function textoUltimaCopia() {
+  if (!D.ultimaCopia) return 'Aún no has hecho ninguna';
+  const n = diasDesde(D.ultimaCopia);
+  return 'Última copia: ' + (n <= 0 ? 'hoy' : n === 1 ? 'ayer' : 'hace ' + n + ' días');
+}
+// ¿Toca recordar la copia? (cada 2 semanas; ✕ lo calla otras 2 semanas)
+function tocaCopia() {
+  const base = D.ultimaCopia || D.creado, h = hoyIso();
+  if (D.copiaCallada && D.copiaCallada > h) return false;
+  return diasDesde(base) >= DIAS_AVISO_COPIA;
+}
+async function hacerCopia() {
+  const h = hoyIso();
+  const texto = JSON.stringify({ app: 'presu', copia: 1, fecha: new Date().toISOString(), datos: D }, null, 1);
+  const nombre = 'Presu-copia-' + h + '.json';
+  const hecho = () => { D.ultimaCopia = h; delete D.copiaCallada; guardarDatos(); aviso('Copia hecha ✓ Guárdala bien'); pintarApp(); };
+  // En el móvil: menú de compartir (Guardar en Archivos, WhatsApp, correo…). En el ordenador: se descarga.
+  try {
+    const archivo = new File([texto], nombre, { type: 'application/json' });
+    if (esMovil() && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      await navigator.share({ files: [archivo], title: 'Copia de Pre$u' });
+      return hecho();
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return aviso('No se ha guardado la copia');
+  }
+  try {
+    const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    hecho();
+  } catch (e) { aviso('No se ha podido hacer la copia'); }
+}
+// Elegir el archivo de la copia y, tras confirmar, cambiar todo por ella
+function elegirCopia() {
+  const inp = document.createElement('input');
+  inp.type = 'file';   // sin «accept»: en algunos iPhone los .json salen en gris si se pone
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    const lector = new FileReader();
+    lector.onload = () => {
+      let c = null;
+      try { c = JSON.parse(lector.result); } catch (e) {}
+      const d = c && c.app === 'presu' ? c.datos : null;
+      if (!d || !d.creado || !Array.isArray(d.cuentas) || !Array.isArray(d.ingresos) || !Array.isArray(d.fijos)) return aviso('Este archivo no es una copia de Pre$u');
+      hojaRecuperar(c, d);
+    };
+    lector.onerror = () => aviso('No se ha podido leer el archivo');
+    lector.readAsText(f);
+  };
+  inp.click();
+}
+function hojaRecuperar(c, d) {
+  const f = String(c.fecha || '').slice(0, 10), hay = !!leer('presu');
+  const n = (d.movimientos || []).length;
+  abrirHoja(() => ({
+    html: `<h2>📂 ¿Recuperar esta copia?</h2>
+      <div class="tarjeta" style="margin-top:12px">
+        <div class="linea" style="border-top:0"><span>De</span><b>${esc(d.nombre || '—')}</b></div>
+        ${f ? `<div class="linea"><span>Hecha el</span><b>${fechaCorta(f)} ${f.slice(0, 4)}</b></div>` : ''}
+        <div class="linea"><span>Cuentas</span><b>${d.cuentas.length}</b></div>
+        <div class="linea"><span>Movimientos apuntados</span><b>${n}</b></div>
+      </div>
+      ${hay ? '<p class="nota" style="margin:12px 6px 0"><b class="neg">Se cambiará todo lo que tienes ahora en Pre$u por lo de la copia.</b></p>' : ''}
+      <div class="botones-hoja"><button class="boton" id="hGuardar">Recuperar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      $('hGuardar').onclick = () => {
+        const antes = localStorage.getItem('presu');
+        try { if (antes) localStorage.setItem('presu_antes_de_recuperar', antes); } catch (e) {}
+        if (!guardar('presu', d)) return aviso('No se ha podido guardar en el móvil');
+        try { localStorage.removeItem('presu_borrador'); } catch (e) {}
+        cerrarHoja(); vista = 'inicio'; subAj = '';
+        pintarInicio(true); aviso('Copia recuperada ✓');
+      };
+    }
+  }));
+}
+
 // ---------- ⚙️ Ajustes ----------
 const activo = it => !it.hasta || it.hasta >= hoyIso();
 const descFijo = it => eur(it.importe) + (it.frec === 'mes' ? ' al mes · día ' + it.dia : ' a la semana · ' + DIAS_NOMBRE[it.dia])
@@ -2598,6 +2759,8 @@ function vistaAjustes() {
           ${seg('jPeriodo', [['semana', 'Por semanas'], ['mes', 'Por meses']], D.periodo)}
           <div class="etq">🎯 Lo que te sobre ${mes ? 'un mes' : 'una semana'} va</div>
           ${seg('jSobra', [['siguiente', mes ? 'Al mes siguiente' : 'A la siguiente'], ['ahorro', 'Al ahorro']], D.sobrante)}
+          ${D.inicialHasta ? `<button class="aj-dia" id="jInicial"><span>💳 Lo que tenías dura hasta el <b>${fechaCorta(D.inicialHasta)}</b></span><span class="ir">›</span></button>`
+            : !hayIngresoMensual(D) && D.inicial > 0 ? `<button class="aj-dia" id="jInicial"><span>💳 ¿Hasta cuándo te dura lo que tenías?</span><span class="ir">›</span></button>` : ''}
           ${conDia ? `<button class="aj-dia" id="jDiaMes"><span>🗓️ Tu mes empieza el día <b>${DIA_MES}</b></span><span class="ir">›</span></button>` : ''}
         </div>
         <div class="sec-tit">Tu dinero</div>
@@ -2613,6 +2776,13 @@ function vistaAjustes() {
           <div class="ajuste-fila"><span>📲 Pagos de Apple Pay</span><button class="interruptor ${D.applePay ? 'on' : ''}" id="jApplePay" aria-label="Traer pagos de Apple Pay"></button></div>
           ${D.applePay ? '<button class="anadir" id="jGuiaAP" style="margin-top:10px">¿Cómo se configura en el iPhone?</button>' : ''}
         </div>
+        <div class="sec-tit">Copia de seguridad</div>
+        <div class="tarjeta aj-rapido">
+          <p class="nota" style="margin:0 2px 12px">Tus datos solo están en este móvil. Si borras la app o cambias de móvil, se pierden. Haz una copia y guárdala en Archivos (iCloud Drive) o envíatela.</p>
+          <button class="boton" id="jCopia">💾 Hacer una copia</button>
+          <div class="nota" style="text-align:center;margin-top:8px">${textoUltimaCopia()}</div>
+          <button class="boton contorno" id="jRecuperar" style="margin-top:12px">📂 Recuperar una copia</button>
+        </div>
         <div class="sec-tit">Zona peligrosa</div>
         <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
         <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>`,
@@ -2621,7 +2791,7 @@ function vistaAjustes() {
         document.querySelectorAll('.menu-aj .mov').forEach(el => el.onclick = () => irAjuste(el.dataset.s));
         montarAj();
         $('bBorrar').onclick = () => {
-          if (!confirm('¿Seguro? Se borrará todo lo que tienes en Pre$u y volverás a empezar.')) return;
+          if (!confirm('¿Seguro? Se borrará todo lo que tienes en Pre$u y volverás a empezar.' + (D.ultimaCopia ? '' : '\nNo has hecho ninguna copia: no se podrá recuperar.'))) return;
           localStorage.removeItem('presu'); localStorage.removeItem('presu_borrador');
           D = null; F = null; vista = 'inicio'; subAj = ''; B = VACIO(); direccion = 1;
           pintar(); window.scrollTo(0, 0);
@@ -2681,6 +2851,9 @@ function vistaAjustes() {
       });
       si('jTema', () => segmento('jTema', v => { aplicarTema(v); pintarApp(); }));
       si('jDiaMes', el => el.onclick = hojaDiaMes);
+      si('jInicial', el => el.onclick = hojaInicial);
+      si('jCopia', el => el.onclick = hacerCopia);
+      si('jRecuperar', el => el.onclick = elegirCopia);
       si('jPeriodo', () => segmento('jPeriodo', v => { if (v !== D.periodo) cambiarPeriodo(v); }));
       si('jSobra', () => segmento('jSobra', v => {
         if (v === D.sobrante) return;
@@ -2715,6 +2888,49 @@ function vistaAjustes() {
 }
 
 // Cambiar el día en que empieza «tu mes» (el día que cobras): se recalcula todo con el nuevo día
+// Cambiar hasta cuándo te tiene que durar lo que tenías al empezar (si no cobras cada mes)
+function hojaInicial() {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), mes = P === 'mes';
+  const rapidas = fechasRapidas();
+  let f = D.inicialHasta > h ? D.inicialHasta : '', otra = f && !rapidas.some(([, x]) => x === f);
+  // Lo que queda por repartir desde este periodo (incluido)
+  const desdeAhora = r2((c.inicialQueda || 0) + (c.ini === act ? c.deInicio : 0));
+  abrirHoja(() => {
+    const n = f ? Math.max(1, contarPeriodos(act, inicioPeriodo(f, P), P)) : 0;
+    return {
+      html: `<h2>💳 ¿Hasta cuándo te tiene que durar?</h2>
+        <p class="ayuda">Lo que tenías al empezar se reparte a partes iguales hasta esta fecha. Te quedan <b>${eur(desdeAhora)}</b> contando ${mes ? 'este mes' : 'esta semana'}.</p>
+        <div class="tarjeta">
+          <div class="chips" id="iRapidas">${rapidas.map(([t, x]) => `<button class="chip ${!otra && f === x ? 'on' : ''}" data-f="${x}">${t}</button>`).join('')}
+            <button class="chip ${otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
+          ${otra ? `<input id="iFecha" class="texto campo" type="date" min="${masDias(h, 1)}" value="${f}" style="margin-top:12px">` : ''}
+          ${f ? `<div class="nota" style="margin-top:12px">Desde ${mes ? 'este mes' : 'esta semana'}: unos <b>${eur(parteDe(desdeAhora, n, 0))}</b> ${mes ? 'al mes' : 'a la semana'} hasta el ${fechaCorta(f)} ${f.slice(0, 4)}. Lo de antes no cambia.</div>` : ''}
+        </div>
+        <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+      montar() {
+        $('iRapidas').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+          if (b.dataset.f === 'otra') { otra = true; f = ''; pintarHoja(); $('iFecha').focus(); return; }
+          otra = false; f = b.dataset.f; pintarHoja();
+        });
+        if ($('iFecha')) $('iFecha').onchange = e => { if (e.target.value > h) { f = e.target.value; pintarHoja(); } };
+        $('hGuardar').onclick = () => {
+          if (!f) return aviso('Elige una fecha');
+          if (f === D.inicialHasta) return cerrarHoja();
+          // Lo de periodos anteriores se queda igual; lo que queda se reparte desde este periodo hasta la nueva fecha
+          const primero = inicioPeriodo(D.creado, P);
+          let tr = tramosInicial(D);
+          if (!tr.length) tr = [{ desde: primero, ultimo: primero, n: 1, total: r2(D.inicial) }];   // regla antigua: todo en el primer periodo
+          const ant = periodoAnterior(act, P);
+          const antes = tr.filter(t => t.desde <= ant).map(t => Object.assign({}, t, { ultimo: t.ultimo > ant ? ant : t.ultimo }));
+          const ultimo = inicioPeriodo(f, P);
+          D.repartoInicial = antes.concat(desdeAhora > 0 ? [{ desde: act, ultimo, n: Math.max(1, contarPeriodos(act, ultimo, P)), total: desdeAhora }] : []);
+          D.inicialHasta = f;
+          guardarDatos(); cerrarHoja(); aviso('Ahora te dura hasta el ' + fechaCorta(f)); pintarApp();
+        };
+      }
+    };
+  });
+}
 function hojaDiaMes() {
   let dia = DIA_MES;
   const cobro = D.ingresos.filter(x => x.frec === 'mes' && !x.hasta).sort((a, b) => b.importe - a.importe)[0];
@@ -2734,6 +2950,7 @@ function hojaDiaMes() {
         const rehacer = D.periodo === 'mes' ? prepararReparto() : null;
         D.diaMes = dia; fijarDiaMes(D); movIni = null;
         if (rehacer) rehacer();
+        if (D.periodo === 'mes') delete D.repartoInicial;
         guardarDatos(); cerrarHoja(); aviso('Tu mes empieza el día ' + dia); pintarApp();
       };
     }
@@ -2760,7 +2977,7 @@ function prepararReparto() {
 function cambiarPeriodo(v) {
   if (!confirm(v === 'mes' ? '¿Ver tu dinero por meses? Se recalcula todo por meses.' : '¿Ver tu dinero por semanas? Se recalcula todo por semanas (lo mensual se reparte entre las semanas).')) return pintarApp();
   const rehacer = prepararReparto();
-  D.periodo = v; movIni = null; rehacer(); guardarDatos();
+  D.periodo = v; movIni = null; rehacer(); delete D.repartoInicial; guardarDatos();
   aviso(v === 'mes' ? 'Ahora lo ves por meses' : 'Ahora lo ves por semanas'); pintarApp();
 }
 
