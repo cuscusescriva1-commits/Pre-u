@@ -32,7 +32,7 @@ try { var t = localStorage.getItem('presu_tema'); if (t === 'claro' || t === 'os
 :root[data-tema="claro"]{color-scheme:light}
 :root[data-tema="oscuro"]{color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg)}
+html{background:var(--bg);overflow-x:clip}   /* que la animación al cambiar de pantalla no deje mover la página de lado */
 body{margin:0 auto;max-width:460px;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--txt);
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,system-ui,sans-serif;
   -webkit-text-size-adjust:100%;line-height:1.35}
@@ -230,6 +230,7 @@ input[type=date].texto{min-height:52px}
 .nav-per .centro .queda{margin-top:4px;font-size:14.5px;font-weight:600;color:var(--txt)}
 .nav-per .centro .queda span{display:inline;font-size:inherit;margin:0;font-weight:750}
 .nav-per .queda span.pos{color:var(--verde)}.nav-per .queda span.neg{color:var(--rojo)}
+.nav-per .centro .queda-sub{margin-top:2px;font-size:13px;color:var(--sub)}
 .sec-tit{font-size:13px;color:var(--sub);font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin:22px 6px 8px}
 .lista{padding:4px 16px}
 .mov{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--sep);cursor:pointer}
@@ -314,6 +315,10 @@ input[type=date].texto{min-height:52px}
 .ah-total b{font-size:20px;color:var(--txt);font-weight:750}
 
 /* ===== Ajustes ===== */
+.aj-rapido .etq:first-child{margin-top:0}
+.aj-dia{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;color:var(--txt);font:inherit;font-size:16px;
+  margin-top:14px;padding:13px 0 1px;border-top:1px solid var(--sep);text-align:left;cursor:pointer}
+.aj-dia .ir{color:var(--sub);font-size:22px;line-height:1;opacity:.6}
 .ajuste-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:16px}
 .ajuste-fila input{flex:1;min-width:0;border:0;background:none;text-align:right;font-size:16px;outline:none;color:var(--sub);padding:6px 0}
 .ajuste-fila input:focus{color:var(--txt)}
@@ -355,6 +360,12 @@ input[type=date].texto{min-height:52px}
 .hoja textarea{display:block;width:100%;min-height:110px;border:0;border-radius:14px;background:var(--card);box-shadow:var(--sombra);padding:12px 14px;font:inherit;font-size:15px;color:inherit;outline:none;resize:vertical}
 .guia ol{margin:0;padding-left:22px;font-size:15px;line-height:1.5}
 .guia li{margin-bottom:9px}
+/* Guía de Apple Pay: «Antes de empezar» (qué lee Pre$u y dónde se guarda) */
+.antes-ap{border:1.5px solid var(--acento);background:var(--acento-suave)}
+.antes-ap .tit-antes{font-weight:700;font-size:16px;margin-bottom:8px}
+.antes-ap ul{margin:0;padding-left:20px;font-size:15px;line-height:1.5}
+.antes-ap li{margin-bottom:7px}
+.antes-ap li:last-child{margin-bottom:0}
 .guia code{background:var(--campo);border-radius:6px;padding:1px 6px;font-size:13.5px;word-break:break-all}
 </style>
 </head>
@@ -371,9 +382,15 @@ input[type=date].texto{min-height:52px}
 
 const $ = id => document.getElementById(id);
 const leer = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
-const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+// Si el móvil no deja guardar (sin espacio, modo privado…), se avisa: si no, se perdería lo apuntado sin enterarse
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch (e) { setTimeout(() => aviso('⚠️ No se ha podido guardar. ¿Tienes el móvil sin espacio o estás en modo privado?'), 60); return false; } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-const num = s => { s = String(s ?? '').trim().replace(/[€\s]/g, ''); if (!s) return NaN; return parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s); };
+// Lee cantidades escritas a la española: «1.234,56», «12,5», «12.5» y también «1.000» (mil, no uno)
+const num = s => { s = String(s ?? '').trim().replace(/[€\s]/g, ''); if (!s) return NaN;
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (/^[-+]?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) return parseFloat(s.replace(/\./g, ''));
+  return parseFloat(s); };
 const eur = (n, dec) => Number(n || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR',
   minimumFractionDigits: dec === 0 ? 0 : 2, maximumFractionDigits: dec === 0 ? 0 : 2 });
 const r2 = n => Math.round(n * 100) / 100;
@@ -381,6 +398,8 @@ const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice
 function hoyIso() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
 const fmtImporte = n => (n || n === 0) && !isNaN(n) && n > 0 ? String(r2(n)).replace('.', ',') : '';
 
+// Si algo falla, que salga un aviso en vez de quedarse la pantalla sin hacer nada
+window.addEventListener('error', () => aviso('Algo ha fallado. Cierra Pre$u y vuelve a abrirla.'));
 let tAviso;
 function aviso(t) {
   const a = $('aviso'); a.textContent = t; a.classList.add('ver');
@@ -775,7 +794,7 @@ const PANTALLAS = {
     let p1 = siguientePeriodo(c.ini, d.periodo);
     if (!mes && conCobro) while (cicloDeSemana(d, p1) === c0) p1 = masDias(p1, 7);
     const r1 = calcular(d, h, p1), normal = r2(r1.entra + r1.deInicio + r1.deAhorros - r1.fijos);
-    const cobro = conCobro && d.ingresos.some(x => x.frec === 'mes' && x.dia === d.diaMes);
+    const cobro = conCobro && d.ingresos.some(x => x.frec === 'mes' && x.dia === d.diaMes) && (mes || primerCicloSem(d) === c0);
     const filas = [];
     if (c.deInicio) filas.push([c.ciclo && c.ciclo.arranque && c.ciclo.n > 1 ? `Lo que tienes ahora (${eur(d.inicial)} entre ${c.ciclo.n} semanas)` : 'Lo que tienes ahora', '+' + eur(c.deInicio)]);
     if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
@@ -943,6 +962,9 @@ const siguientePeriodo = (ini, P) => P === 'mes' ? cicloSiguiente(ini) : masDias
 // Por semanas, cada semana va con el mes de cobro en el que cae su jueves (la semana en que cobras ya cuenta con lo nuevo).
 // Las semanas de antes del primer mes completo van con el primero (el de cuando empezaste).
 function cicloDeSemana(d, w) { const c = inicioCiclo(masDias(w, 3)), c0 = inicioCiclo(d.creado); return c < c0 ? c0 : c; }
+// El mes de cobro de la primera semana. Si empiezas justo antes de cobrar (ej.: lunes 26 y cobras el 27), tu primera semana
+// ya va con el mes nuevo: lo que tenías al empezar se suma a esa semana y lo que quedaba del mes anterior también va en ella.
+const primerCicloSem = d => cicloDeSemana(d, lunesDe(d.creado));
 function semanasDelCiclo(d, c) {
   const primera = lunesDe(d.creado), r = [];
   for (let w = lunesDe(masDias(c, -7)); w <= finCiclo(c); w = masDias(w, 7)) if (w >= primera && cicloDeSemana(d, w) === c) r.push(w);
@@ -1030,9 +1052,10 @@ function calcular(d, hoy = hoyIso(), hasta) {
 
   // Por semanas: lo mensual de cada mes de cobro se reparte entre sus semanas (en céntimos exactos)
   const bolsas = {};
-  const bolsa = c => bolsas[c] || (bolsas[c] = { entra: suma(mesIng, ing, c, finCiclo(c)), fijos: suma(mesFij, fij, c, finCiclo(c)), sem: semanasDelCiclo(d, c) });
+  const bolsa = c => bolsas[c] || (bolsas[c] = { entra: suma(mesIng, ing, c === cW ? c0 : c, finCiclo(c)), fijos: suma(mesFij, fij, c === cW ? c0 : c, finCiclo(c)), sem: semanasDelCiclo(d, c) });
   // Lo que tenías al empezar: para gastar hasta que cobras (si no cobras cada mes, para la primera semana)
   const c0 = inicioCiclo(d.creado), conCobro = hayIngresoMensual(d), inicial = d.inicial || 0;
+  const cW = P === 'semana' ? primerCicloSem(d) : c0, repartirInicial = conCobro && cW === c0;
 
   let arrastre = 0, ahorrado = 0, res = null;
   for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
@@ -1048,7 +1071,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
       ciclo = { ini: c, fin: finCiclo(c), n, arranque: d.inicial != null && conCobro && c === c0 };
       entra = suma(semIng, ing, p, fin) + parteDe(b.entra, n, i);
       fijos = suma(semFij, fij, p, fin) + parteDe(b.fijos, n, i);
-      if (conCobro ? c === c0 : p === primero) deInicio = conCobro ? parteDe(inicial, n, i) : inicial;
+      if (repartirInicial ? c === c0 : p === primero) deInicio = repartirInicial ? parteDe(inicial, n, i) : inicial;
     }
     entra = r2(entra); fijos = r2(fijos); deInicio = r2(deInicio);     // a céntimos, para que lo que se ve sume exacto
     const deAhorros = r2(cuotaEn(tramos, p, P));
@@ -1606,6 +1629,15 @@ function hojaGuiaApplePay() {
   abrirHoja(() => ({
     html: `<h2>📲 Configurar Apple Pay</h2>
       <p class="ayuda">Se hace una sola vez, en la app <b>Atajos</b> del iPhone. Necesitas iOS 17 o más nuevo y tu tarjeta en la Cartera.</p>
+      <div class="tarjeta guia antes-ap">
+        <div class="tit-antes">🔒 Antes de empezar: qué lee Pre$u</div>
+        <ul>
+          <li>De cada pago, solo <b>3 datos</b>: el <b>importe</b>, el <b>comercio</b> y el <b>nombre de la tarjeta</b>.</li>
+          <li><b>Nada más</b>: ni tu saldo, ni el número de la tarjeta, ni tus contraseñas.</li>
+          <li>Se guarda <b>en tu iPhone</b>, en la carpeta de Atajos de <b>tu</b> iCloud Drive. Pre$u no tiene servidores: nadie lo ve, ni siquiera nosotros.</li>
+          <li>Todo se hace con apps de Apple (<b>Atajos</b> y <b>Cartera</b>). Lo puedes apagar cuando quieras borrando la automatización.</li>
+        </ul>
+      </div>
       <div class="etq">1 · El atajo «Pre$u»</div>
       ${ENLACE_ATAJO ? `<button class="boton" id="gInstalar">Instalar el atajo</button>
         <p class="nota">Pulsa <b>Añadir atajo</b> y <b>no le cambies el nombre</b>.</p>`
@@ -1617,6 +1649,7 @@ function hojaGuiaApplePay() {
         <li><b>Mostrar notificación</b>: <code>💸 Guardado para Pre$u</code>.</li>
         <li>Arriba, en «Si no hay datos de entrada», deja <b>Continuar</b>.</li></ol></div>`}
       <div class="etq">2 · La automatización</div>
+      <button class="boton suave" id="gAbrirAtajos" style="margin-bottom:10px">Abrir Atajos</button>
       <div class="tarjeta guia"><ol>
         <li>Abre <b>Atajos</b> y toca la pestaña <b>Automatización</b> (abajo).</li>
         <li>Toca <b>＋</b> (arriba a la derecha) y elige <b>Cartera</b>.</li>
@@ -1637,7 +1670,7 @@ function hojaGuiaApplePay() {
         <li>Abre Pre$u → <b>Traer</b> → <b>Pegar</b> → revisa → <b>Añadir</b>.</li>
         <li>Si has copiado otra cosa, pulsa <b>Recuperar mis pagos</b>.</li></ol></div>
       <div class="botones-hoja"><button class="boton ${ENLACE_ATAJO ? 'sec' : ''}" id="hCancelar">Entendido</button></div>`,
-    montar() { if ($('gInstalar')) $('gInstalar').onclick = () => abrirEnlace(ENLACE_ATAJO); }
+    montar() { if ($('gInstalar')) $('gInstalar').onclick = () => abrirEnlace(ENLACE_ATAJO); $('gAbrirAtajos').onclick = () => abrirEnlace('shortcuts://'); }
   }));
 }
 
@@ -1676,8 +1709,9 @@ function fijosDelPeriodo(ini, fin) {
   };
   // Lo de antes de empezar (y del mismo día) ya estaba en lo que tenías: no sale
   const ciclo = semanas ? cicloDeSemana(D, ini) : null, nSem = semanas ? Math.max(1, semanasDelCiclo(D, ciclo).length) : 0;
+  const desdeCiclo = semanas && ciclo === primerCicloSem(D) ? inicioCiclo(D.creado) : ciclo;
   [['ingreso', D.ingresos], ['fijo', D.fijos]].forEach(([tipo, lista]) => lista.forEach(it => {
-    if (semanas && it.frec === 'mes') fechasDe(it, ciclo, finCiclo(ciclo)).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, nSem));
+    if (semanas && it.frec === 'mes') fechasDe(it, desdeCiclo, finCiclo(ciclo)).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, nSem));
     else fechasDe(it, ini, fin).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, 0));
   }));
   return r.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : a.tipo === 'ingreso' ? -1 : 1);
@@ -1695,7 +1729,14 @@ function vistaMovimientos() {
   const titulo = esActual ? (mes ? 'Este mes' : 'Esta semana')
     : siguientePeriodo(ini, P) === actual ? (mes ? 'El mes pasado' : 'La semana pasada')
     : siguientePeriodo(actual, P) === ini ? (mes ? 'El mes que viene' : 'La semana que viene') : textoRango(ini, fin);
-  const queda = futuro ? `Tendrás unos <span class="${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</span>`
+  // Semana o mes futuro: «Tendrás 200 €» (lo de ese periodo)
+  // - El que viene: + lo que te queda DE VERDAD ahora, si lo que sobra pasa al siguiente (o − lo que te has pasado, que siempre se resta)
+  // - Los demás: solo lo suyo (+ lo que te sobre antes, si lo que sobra pasa al siguiente)
+  const propio = r2(c.queda - c.arrastre), deAntes = mes ? 'del mes anterior' : 'de la semana anterior';
+  const cifra = n => `<span class="${n < 0 ? 'neg' : 'pos'}">${eur(n)}</span>`;
+  const queda = futuro ? (siguientePeriodo(actual, P) === ini
+      ? `Tendrás ${cifra(propio)}${c.arrastre > 0 ? ` + ${cifra(c.arrastre)} ${deAntes}` : c.arrastre < 0 ? ` − <span class="neg">${eur(-c.arrastre)}</span> ${deAntes}` : ''}`
+      : `Tendrás ${cifra(propio)}${sobranteEn(D, periodoAnterior(ini, P)) === 'siguiente' ? '<div class="queda-sub">+ lo que te sobre antes</div>' : ''}`)
     : esActual ? `Te queda <span class="${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</span>`
     : c.queda >= 0 ? `Te sobraron <span class="pos">${eur(c.queda)}</span>` : `Te faltaron <span class="neg">${eur(-c.queda)}</span>`;
 
@@ -2102,30 +2143,46 @@ function vistaAjustes() {
   // ----- El menú -----
   if (!subAj || !APARTADOS[subAj]) {
     const resumen = {
-      perfil: D.nombre + ' · ' + (mes ? 'por meses' : 'por semanas'),
-      apariencia: { auto: 'Automático', claro: 'Claro', oscuro: 'Oscuro' }[temaActual()],
       ingresos: resumenLista(ingresos, 'ingreso', 'ingresos'),
       fijos: resumenLista(fijos, 'gasto', 'gastos'),
       ahorros: !a ? 'No tienes' : a.modo === 'hucha' ? 'Hucha · ' + eur(quedaAhorro) : 'Para gastar · te quedan ' + eur(quedaAhorro),
       cuentas: D.cuentas.map(k => k.nombre).join(', '),
-      categorias: D.categorias.length + ' categorías',
-      applepay: D.applePay ? 'Activado' : 'Apagado'
+      categorias: D.categorias.length + ' categorías'
     };
     const grupo = ks => `<div class="tarjeta lista menu-aj">${ks.map(k => `<div class="mov" data-s="${k}"><div class="ico">${APARTADOS[k][0]}</div>
       <div class="txt"><b>${APARTADOS[k][1]}</b><span>${esc(resumen[k])}</span></div><div class="ir">›</div></div>`).join('')}</div>`;
+    const conDia = mes || [...D.ingresos, ...D.fijos].some(x => x.frec === 'mes');
+    // Lo que se elige entre 2 o 3 opciones se cambia aquí mismo; lo que tiene listas se abre al tocar
     return {
       html: `<div class="cab"><div class="cab-izq"><button class="atras" id="bVolver" aria-label="Volver">${FLECHA}</button><h1>Ajustes</h1></div></div>
-        ${grupo(['perfil', 'apariencia'])}
+        <div class="sec-tit" style="margin-top:6px">Tu presupuesto</div>
+        <div class="tarjeta aj-rapido">
+          <div class="etq">📅 Ver tu dinero</div>
+          ${seg('jPeriodo', [['semana', 'Por semanas'], ['mes', 'Por meses']], D.periodo)}
+          <div class="etq">🎯 Lo que te sobre ${mes ? 'un mes' : 'una semana'} va</div>
+          ${seg('jSobra', [['siguiente', mes ? 'Al mes siguiente' : 'A la siguiente'], ['ahorro', 'Al ahorro']], D.sobrante)}
+          ${conDia ? `<button class="aj-dia" id="jDiaMes"><span>🗓️ Tu mes empieza el día <b>${DIA_MES}</b></span><span class="ir">›</span></button>` : ''}
+        </div>
         <div class="sec-tit">Tu dinero</div>
         ${grupo(['ingresos', 'fijos', 'ahorros', 'cuentas', 'categorias'])}
+        <div class="sec-tit">Tú</div>
+        <div class="tarjeta aj-rapido">
+          <div class="ajuste-fila"><span>🙂 Tu nombre</span><input id="jNombre" type="text" maxlength="30" value="${esc(D.nombre)}" enterkeyhint="done"></div>
+          <div class="etq">🎨 Apariencia</div>
+          ${seg('jTema', [['auto', 'Automático'], ['claro', '☀️ Claro'], ['oscuro', '🌙 Oscuro']], temaActual())}
+        </div>
         <div class="sec-tit">iPhone</div>
-        ${grupo(['applepay'])}
+        <div class="tarjeta aj-rapido">
+          <div class="ajuste-fila"><span>📲 Pagos de Apple Pay</span><button class="interruptor ${D.applePay ? 'on' : ''}" id="jApplePay" aria-label="Traer pagos de Apple Pay"></button></div>
+          ${D.applePay ? '<button class="anadir" id="jGuiaAP" style="margin-top:10px">¿Cómo se configura en el iPhone?</button>' : ''}
+        </div>
         <div class="sec-tit">Zona peligrosa</div>
         <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
         <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>`,
       montar() {
         $('bVolver').onclick = () => irA('inicio');
         document.querySelectorAll('.menu-aj .mov').forEach(el => el.onclick = () => irAjuste(el.dataset.s));
+        montarAj();
         $('bBorrar').onclick = () => {
           if (!confirm('¿Seguro? Se borrará todo lo que tienes en Pre$u y volverás a empezar.')) return;
           localStorage.removeItem('presu'); localStorage.removeItem('presu_borrador');
@@ -2174,8 +2231,13 @@ function vistaAjustes() {
     html: `<div class="cab"><div class="cab-izq"><button class="atras" id="bVolver" aria-label="Volver a Ajustes">${FLECHA}</button><h1>${APARTADOS[subAj][1]}</h1></div></div>
       ${cuerpo}`,
     montar() {
-      const si = (id, fn) => { if ($(id)) fn($(id)); };
       $('bVolver').onclick = () => irAjuste('');
+      montarAj();
+    }
+  };
+  // Botones de Ajustes (los usan el menú y cada apartado)
+  function montarAj() {
+      const si = (id, fn) => { if ($(id)) fn($(id)); };
       si('jNombre', el => {
         el.oninput = e => { if (e.target.value.trim()) { D.nombre = e.target.value.trim(); guardarDatos(); } };
         el.onblur = e => { if (!e.target.value.trim()) e.target.value = D.nombre; };
@@ -2212,8 +2274,7 @@ function vistaAjustes() {
       si('jNuevaCat', el => el.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCat(); } });
       si('jApplePay', el => el.onclick = () => { D.applePay = !D.applePay; guardarDatos(); pintarApp(); if (D.applePay) hojaGuiaApplePay(); });
       si('jGuiaAP', el => el.onclick = hojaGuiaApplePay);
-    }
-  };
+  }
 }
 
 // Cambiar el día en que empieza «tu mes» (el día que cobras): se recalcula todo con el nuevo día
@@ -2232,27 +2293,37 @@ function hojaDiaMes() {
       $('dMas').onclick = () => { dia = dia < 31 ? dia + 1 : 1; ver(); };
       $('hGuardar').onclick = () => {
         if (dia === DIA_MES) return cerrarHoja();
-        // Los ahorros para gastar por meses: se vuelve a repartir el total hasta la misma fecha
-        if (D.periodo === 'mes' && D.ahorro && D.ahorro.modo === 'gastar') {
-          const t = tramosAhorro(D); D.ahorro.importe = r2(t.reduce((s, x) => s + sumaTramo(x, 'mes'), 0)); delete D.repartoAhorro;
-        }
+        // Por meses, los ahorros repartidos se vuelven a repartir con los meses nuevos
+        const rehacer = D.periodo === 'mes' ? prepararReparto() : null;
         D.diaMes = dia; fijarDiaMes(D); movIni = null;
+        if (rehacer) rehacer();
         guardarDatos(); cerrarHoja(); aviso('Tu mes empieza el día ' + dia); pintarApp();
       };
     }
   }));
 }
 
+// Al cambiar de semanas a meses (o el día que empieza tu mes), los ahorros repartidos se vuelven a repartir con los periodos nuevos.
+// Se mira ANTES del cambio cuánto se ha repartido en total, y se devuelve una función que lo reparte DESPUÉS del cambio.
+// - Ahorros para gastar: el total se vuelve a repartir hasta la misma fecha.
+// - Si ya no son para gastar (los pasaste a la hucha o los quitaste): lo que ya se repartió se queda repartido en los mismos días.
+function prepararReparto() {
+  const P = D.periodo, t = tramosAhorro(D);
+  if (!t.length) return () => {};
+  const total = r2(t.reduce((s, x) => s + sumaTramo(x, P), 0));
+  const finDia = finPeriodo(t.reduce((m, x) => x.ultimo > m ? x.ultimo : m, ''), P);
+  return () => {
+    if (D.ahorro && D.ahorro.modo === 'gastar') { D.ahorro.importe = total; delete D.repartoAhorro; return; }
+    const desde = inicioPeriodo(D.creado, D.periodo), ultimo = inicioPeriodo(finDia, D.periodo);
+    D.repartoAhorro = total > 0 && ultimo >= desde ? [{ desde, ultimo, n: contarPeriodos(desde, ultimo, D.periodo), total }] : [];
+  };
+}
+
 // Pasar de semanas a meses (o al revés): se recalcula todo con el nuevo periodo
 function cambiarPeriodo(v) {
   if (!confirm(v === 'mes' ? '¿Ver tu dinero por meses? Se recalcula todo por meses.' : '¿Ver tu dinero por semanas? Se recalcula todo por semanas (lo mensual se reparte entre las semanas).')) return pintarApp();
-  // Los ahorros para gastar: se vuelve a repartir el total hasta la misma fecha
-  if (D.ahorro && D.ahorro.modo === 'gastar') {
-    const P = D.periodo, t = tramosAhorro(D);
-    D.ahorro.importe = r2(t.reduce((s, x) => s + sumaTramo(x, P), 0));
-    delete D.repartoAhorro;
-  }
-  D.periodo = v; movIni = null; guardarDatos();
+  const rehacer = prepararReparto();
+  D.periodo = v; movIni = null; rehacer(); guardarDatos();
   aviso(v === 'mes' ? 'Ahora lo ves por meses' : 'Ahora lo ves por semanas'); pintarApp();
 }
 
@@ -2400,7 +2471,10 @@ function hojaCuenta(k) {
       if ($('hQuitar')) $('hQuitar').onclick = () => {
         const otra = D.cuentas.find(c => c !== k);
         if (!confirm('¿Quitar «' + k.nombre + '»? Lo que estaba en ella pasará a «' + otra.nombre + '».')) return;
+        // «Deberías tener»: el dinero de la cuenta que se quita se suma a la otra (si las dos tenían saldo puesto)
+        const sQuita = saldoCuenta(k), sOtra = saldoCuenta(otra);
         [...D.ingresos, ...D.fijos, ...D.movimientos].forEach(x => { if (x.cuenta === k.id) x.cuenta = otra.id; });
+        if (sOtra !== null) Object.assign(otra, { saldo: r2(sOtra + (sQuita || 0)), saldoFecha: hoyIso(), saldoEn: Date.now() });
         if (D.ahorro && D.ahorro.cuenta === k.id) D.ahorro.cuenta = otra.id;
         if (D.ahorro && D.ahorro.porCuenta && D.ahorro.porCuenta[k.id]) {
           D.ahorro.porCuenta[otra.id] = r2((D.ahorro.porCuenta[otra.id] || 0) + D.ahorro.porCuenta[k.id]); delete D.ahorro.porCuenta[k.id];
