@@ -315,6 +315,26 @@ input[type=date].texto{min-height:52px}
 .deu-tit b{font-size:15.5px;font-weight:700}
 .deu-grupo + .deu-grupo{margin-top:14px;padding-top:12px;border-top:1px solid var(--sep)}
 .res-fila.deu{cursor:pointer}
+.res-fila .tick{flex:none;width:34px;height:34px;border-radius:50%;border:0;background:var(--acento-suave);color:var(--acento);font-size:16px;font-weight:700;display:grid;place-items:center;margin-left:2px}
+.res-fila .tick.on{background:var(--campo);color:var(--sub)}
+.como-pago{display:flex;flex-direction:column;gap:8px;padding:2px 0 12px 52px}
+.como-pago.hija{padding-left:44px}
+.como-pago span{font-size:13.5px;color:var(--sub);font-weight:600}
+.como-pago div{display:flex;gap:8px}
+.como-pago .mini-b{flex:1;padding:10px 6px;background:var(--campo)}
+.como-pago .mini-b.si{background:var(--acento)}
+.avatar.grupo{border-radius:12px;background:var(--campo);font-size:19px}
+.grupo-fila .desplegar{flex:none;display:flex;transition:transform .2s}
+.grupo-fila .desplegar.on{transform:rotate(90deg)}
+.grupo-fila .desplegar svg{width:16px;height:16px;fill:none;stroke:var(--sub);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hijas{margin-left:14px;padding-left:12px;border-left:2px solid var(--sep)}
+.hijas .res-fila{padding:9px 0}
+.hijas .avatar{width:32px;height:32px;font-size:14px}
+#deshacer{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;transform:translateX(-50%) translateY(10px);display:flex;align-items:center;gap:12px;
+  background:rgba(28,28,30,.96);color:#fff;padding:8px 8px 8px 18px;border-radius:24px;font-size:14.5px;opacity:0;pointer-events:none;transition:all .25s;max-width:calc(100% - 32px)}
+#deshacer.ver{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#deshacer span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#deshacer button{flex:none;border:0;border-radius:18px;background:rgba(255,255,255,.16);color:#7ef0c0;font-weight:700;font-size:14.5px;padding:8px 14px}
 .deu-linea{display:flex;align-items:center;gap:12px;width:100%;border:0;text-align:left;padding:14px 16px;color:var(--txt);font-size:15.5px}
 .deu-linea .deu-ico{font-size:20px;flex:none}
 .deu-linea .deu-txt{flex:1;min-width:0;line-height:1.45}
@@ -2049,6 +2069,7 @@ function hojaMovimiento(id) {
       </div>
       <div class="botones-hoja">
         <button class="boton" id="hGuardar">Guardar cambios</button>
+        ${gasto && !m.hucha && !m.reparto ? '<button class="boton contorno" id="hDividir">👥 Dividir con amigos</button>' : ''}
         <button class="boton rojo-txt" id="hBorrar">Borrar</button>
         <button class="boton sec" id="hCancelar">Cancelar</button>
       </div>`,
@@ -2070,6 +2091,7 @@ function hojaMovimiento(id) {
         guardarDatos(); cerrarHoja(); aviso('Cambiado ✓'); pintarApp();
       };
       $('hBorrar').onclick = () => borrarMovimiento(m.id, cerrarHoja);
+      if ($('hDividir')) $('hDividir').onclick = () => hojaNuevaDeuda({ desdeMov: m.id, importe: fmtImporte(m.importe), desc: m.desc === m.cat ? '' : m.desc, cat: m.cat, cuenta: m.cuenta, fecha: m.fecha === hoyIso() ? '' : m.fecha });
     }
   }));
 }
@@ -2274,42 +2296,95 @@ function lineaDeudas() {
       <span class="deu-txt">${md ? `<span>Te deben <b class="pos">${eur(md)}</b></span>` : ''}${md && db ? '<i>·</i> ' : ''}${db ? `<span>Debes <b class="neg">${eur(db)}</b></span>` : ''}</span>
       <span class="deu-flecha">${FLECHA_DER}</span></button>`;
 }
+// Lista de deudas. Los pagos divididos entre varios salen en UNA fila que se despliega (con cada persona debajo).
+// ✓ en cada fila: pregunta en la misma fila «¿Cómo te ha pagado?» (con dinero / sin dinero) y luego se puede deshacer.
+let gruposAbiertos = new Set(), preguntaPago = null;
 function hojaDeudas() {
+  preguntaPago = null;
   abrirHoja(() => {
     const abiertas = D.deudas.filter(abierta).sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : (a.ts || 0) - (b.ts || 0));
     const ultimo = x => x.pagos.length ? x.pagos[x.pagos.length - 1].ts : 0;
     const saldadas = D.deudas.filter(x => !abierta(x)).sort((a, b) => ultimo(b) - ultimo(a));
-    const fila = x => {
-      const debo = x.tipo === 'debo', pag = pagadoDe(x);
-      const sub = [x.desc || (debo ? 'Le debes' : 'Te debe')];
-      if (pag > 0 && abierta(x)) sub.push(eur(pag) + ' de ' + eur(x.importe));   // ha pagado una parte
-      else sub.push(fechaCorta(x.fecha));
-      if (!abierta(x)) sub.push(x.pagos.some(p => p.modo === 'sinDinero') ? 'sin dinero' : debo ? 'pagada' : 'recibido');
-      return `<div class="res-fila deu ${abierta(x) ? '' : 'saldada'}" data-id="${x.id}">${avatar(x.persona, debo)}
-        <div class="txt"><b>${esc(x.persona)}</b><span>${sub.map(esc).join(' · ')}</span></div>
-        <div class="cant">${eur(abierta(x) ? faltaDe(x) : x.importe)}</div></div>`;
+    const delGrupo = g => D.deudas.filter(x => x.grupo === g);
+    const fila = (x, hija) => {
+      const debo = x.tipo === 'debo', pag = pagadoDe(x), ab = abierta(x);
+      const sub = hija ? [] : [x.desc || (debo ? 'Le debes' : 'Te debe')];
+      if (pag > 0 && ab) sub.push(eur(pag) + ' de ' + eur(x.importe));   // ha pagado una parte
+      else if (!hija) sub.push(fechaCorta(x.fecha));
+      if (!ab) sub.push(x.pagos.some(p => p.modo === 'sinDinero') ? 'sin dinero' : debo ? 'pagada' : 'pagado');
+      const preg = preguntaPago === x.id;
+      return `<div class="res-fila deu ${ab ? '' : 'saldada'} ${hija ? 'hija' : ''}" data-id="${x.id}">${avatar(x.persona, debo)}
+        <div class="txt"><b>${esc(x.persona)}</b>${sub.length ? `<span>${sub.map(esc).join(' · ')}</span>` : ''}</div>
+        <div class="cant">${eur(ab ? faltaDe(x) : x.importe)}</div>
+        ${ab ? `<button class="tick ${preg ? 'on' : ''}" data-tick="${x.id}" aria-label="${debo ? 'Ya le he pagado' : 'Ya me ha pagado'}">${preg ? '✕' : '✓'}</button>` : ''}</div>
+        ${preg ? `<div class="como-pago ${hija ? 'hija' : ''}"><span>${debo ? '¿Cómo le has pagado?' : '¿Cómo te ha pagado?'}</span>
+          <div><button class="mini-b si" data-pago="dinero" data-id="${x.id}">${debo ? '💸' : '💶'} Con dinero</button><button class="mini-b" data-pago="sinDinero" data-id="${x.id}">🤝 Sin dinero</button></div></div>` : ''}`;
     };
-    const grupo = (tipo, tit, cls) => {
+    // Una fila por pago dividido (si tiene 2 o más personas); las demás, sueltas
+    const bloque = tipo => {
+      const l = abiertas.filter(x => x.tipo === tipo), hechos = new Set(), out = [];
+      l.forEach(x => {
+        if (x.grupo && delGrupo(x.grupo).length > 1) {
+          if (hechos.has(x.grupo)) return; hechos.add(x.grupo);
+          const todos = delGrupo(x.grupo), falta = r2(todos.filter(abierta).reduce((s, y) => s + faltaDe(y), 0));
+          const pagados = todos.filter(y => !abierta(y)).length, open = gruposAbiertos.has(x.grupo);
+          out.push(`<div class="res-fila deu grupo-fila" data-grupo="${x.grupo}"><div class="avatar grupo">${x.cat ? emojiCat(x.cat) : '👥'}</div>
+            <div class="txt"><b>${esc(x.desc || 'Pago dividido')}</b><span>${fechaCorta(x.fecha)} · ${pagados ? `${pagados} de ${todos.length} pagados` : todos.length + ' personas'}</span></div>
+            <div class="cant">${eur(falta)}</div><span class="desplegar ${open ? 'on' : ''}">${FLECHA_DER}</span></div>
+            ${open ? `<div class="hijas">${todos.slice().sort((a, b) => abierta(b) - abierta(a) || (a.ts || 0) - (b.ts || 0)).map(y => fila(y, true)).join('')}</div>` : ''}`);
+        } else out.push(fila(x));
+      });
+      return out.join('');
+    };
+    const seccion = (tipo, tit, cls) => {
       const l = abiertas.filter(x => x.tipo === tipo);
-      return l.length ? `<div class="deu-grupo"><div class="deu-tit"><span>${tit}</span><b class="${cls}">${eur(l.reduce((s, x) => s + faltaDe(x), 0))}</b></div>${l.map(fila).join('')}</div>` : '';
+      return l.length ? `<div class="deu-grupo"><div class="deu-tit"><span>${tit}</span><b class="${cls}">${eur(l.reduce((s, x) => s + faltaDe(x), 0))}</b></div>${bloque(tipo)}</div>` : '';
     };
     return {
       html: `<h2>Deudas</h2>
-        <p class="ayuda">Toca a alguien cuando te pague (o cuando le pagues tú).</p>
-        <div class="tarjeta" id="hDeudas">${abiertas.length ? grupo('meDeben', 'Te deben', 'pos') + grupo('debo', 'Debes', 'neg')
+        <p class="ayuda">Pulsa ✓ cuando te paguen (o cuando pagues tú). Toca una fila para ver más opciones.</p>
+        <div class="tarjeta" id="hDeudas">${abiertas.length ? seccion('meDeben', 'Te deben', 'pos') + seccion('debo', 'Debes', 'neg')
           : '<div class="vacio" style="padding:8px 10px">Nadie te debe nada y tú no debes nada 👌</div>'}
           ${saldadas.length ? `<button class="deu-mas" id="hSaldadas">${verSaldadas ? 'Ocultar las saldadas' : 'Ver las saldadas (' + saldadas.length + ')'}</button>
-            ${verSaldadas ? `<div class="deu-grupo">${saldadas.map(fila).join('')}</div>` : ''}` : ''}</div>
+            ${verSaldadas ? `<div class="deu-grupo">${saldadas.map(x => fila(x)).join('')}</div>` : ''}` : ''}</div>
         <div class="botones-hoja"><button class="boton contorno" id="hNuevaDeuda">＋ Apuntar otra</button><button class="boton sec" id="hCancelar">Cerrar</button></div>`,
       montar() {
         $('hNuevaDeuda').onclick = () => hojaNuevaDeuda({ volver: hojaDeudas });
         if ($('hSaldadas')) $('hSaldadas').onclick = () => { verSaldadas = !verSaldadas; pintarHoja(); };
-        document.querySelectorAll('#hDeudas .res-fila.deu').forEach(el => el.onclick = () => {
+        document.querySelectorAll('#hDeudas .grupo-fila').forEach(el => el.onclick = () => {
+          const g = el.dataset.grupo; if (gruposAbiertos.has(g)) gruposAbiertos.delete(g); else gruposAbiertos.add(g); preguntaPago = null; pintarHoja();
+        });
+        document.querySelectorAll('#hDeudas .res-fila.deu[data-id]').forEach(el => el.onclick = () => {
           const x = D.deudas.find(d => d.id === el.dataset.id); if (x) hojaDeuda(x, hojaDeudas);
+        });
+        document.querySelectorAll('#hDeudas [data-tick]').forEach(b => b.onclick = e => {
+          e.stopPropagation(); preguntaPago = preguntaPago === b.dataset.tick ? null : b.dataset.tick; pintarHoja();
+        });
+        document.querySelectorAll('#hDeudas [data-pago]').forEach(b => b.onclick = e => {
+          e.stopPropagation();
+          const x = D.deudas.find(d => d.id === b.dataset.id); if (!x || !abierta(x)) return;
+          const falta = faltaDe(x), debo = x.tipo === 'debo', modo = b.dataset.pago;
+          // Con dinero: vuelve a la cuenta de la que salió (te deben) o sale de la última que usaste (debes). Se cambia tocando la fila.
+          pagarDeuda(x, falta, modo, debo ? D.ultimaCuenta : x.cuenta);
+          const pago = x.pagos[x.pagos.length - 1];
+          preguntaPago = null; guardarDatos(); pintarApp(); pintarHoja();
+          const t = modo === 'sinDinero' ? (debo ? 'Saldado con ' + x.persona : 'Saldado con ' + x.persona + ' · ' + eur(falta) + ' cuentan como gasto')
+            : debo ? 'Le has pagado ' + eur(falta) + ' a ' + x.persona : x.persona + ' te ha pagado ' + eur(falta);
+          avisoDeshacer(t, () => { deshacerPago(x, pago); guardarDatos(); pintarApp(); if ($('hDeudas')) pintarHoja(); aviso('Deshecho'); });
         });
       }
     };
   });
+}
+// Aviso con botón «Deshacer» (5 segundos)
+let tDeshacer = null;
+function avisoDeshacer(t, fn) {
+  let el = $('deshacer');
+  if (!el) { el = document.createElement('div'); el.id = 'deshacer'; document.body.appendChild(el); }
+  el.innerHTML = `<span>${esc(t)}</span><button>Deshacer</button>`;
+  el.classList.add('ver');
+  el.querySelector('button').onclick = () => { el.classList.remove('ver'); clearTimeout(tDeshacer); fn(); };
+  clearTimeout(tDeshacer); tDeshacer = setTimeout(() => el.classList.remove('ver'), 5000);
 }
 
 // Apuntar una deuda. Primero: ¿qué ha pasado? (he pagado por más gente · alguien me debe · yo debo)
@@ -2317,7 +2392,7 @@ function hojaDeudas() {
 function hojaNuevaDeuda(pre) {
   pre = pre || {};
   const h = hoyIso();
-  const E = { paso: 'elegir', tipo: 'meDeben', modo: 'una', persona: '', importe: pre.importe || '', desc: pre.desc || '', cuenta: cuentaApp(pre.cuenta || D.ultimaCuenta),
+  const E = { paso: pre.desdeMov ? 'form' : 'elegir', tipo: 'meDeben', modo: pre.desdeMov ? 'dividir' : 'una', persona: '', importe: pre.importe || '', desc: pre.desc || '', cuenta: cuentaApp(pre.cuenta || D.ultimaCuenta),
     fecha: pre.fecha || '', verFecha: false, gente: [], nuevo: '', yo: true,
     cat: D.categorias.includes(pre.cat) ? pre.cat : D.categorias.includes('Comida') ? 'Comida' : D.categorias[0] };
   const OPCIONES = [
@@ -2412,10 +2487,11 @@ function hojaNuevaDeuda(pre) {
     return {
       html: `<h2>${div ? '👥 He pagado por más gente' : meDeben ? '🙋 Alguien me debe' : '🫵 Yo debo'}</h2>
         <div style="margin-top:12px">${cuerpo}</div>
-        <div class="botones-hoja"><button class="boton" id="hGuardar">${div ? 'Dividir' : 'Guardar'}</button><button class="boton sec" id="dAtras">‹ Otra opción</button></div>`,
+        ${pre.desdeMov ? '<p class="nota" style="margin:10px 6px 0">El gasto que ya tenías apuntado pasa a ser solo tu parte, y los demás quedan debiéndote la suya.</p>' : ''}
+        <div class="botones-hoja"><button class="boton" id="hGuardar">${div ? 'Dividir' : 'Guardar'}</button><button class="boton sec" id="dAtras">${pre.desdeMov ? 'Cancelar' : '‹ Otra opción'}</button></div>`,
       montar() {
         $('hGuardar').onclick = guardarNueva;
-        $('dAtras').onclick = () => { E.paso = 'elegir'; pintarHoja(); };
+        $('dAtras').onclick = () => { if (pre.desdeMov) return cerrarHoja(); E.paso = 'elegir'; pintarHoja(); };
         $('dImp').oninput = e => { E.importe = e.target.value; if (div) refrescar(); };
         $('dDesc').oninput = e => { E.desc = e.target.value; };
         if ($('dPer')) $('dPer').oninput = e => {
@@ -2475,7 +2551,11 @@ function hojaNuevaDeuda(pre) {
     if (E.yo && r.mia < 0) return aviso('Las partes suman más que el total');
     if (!E.yo && Math.abs(r.mia) > 0.004) return aviso('Las partes no suman el total');
     const grupo = nuevoId(), cuenta = cuentaApp(E.cuenta), desc = E.desc.trim();
-    if (E.yo && r.mia > 0) D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: r.mia, desc: desc || E.cat, cat: E.cat, cuenta, fecha, ts: ahora, reparto: grupo });
+    const mov = pre.desdeMov && D.movimientos.find(m => m.id === pre.desdeMov);
+    if (mov) {   // dividir un gasto ya apuntado: ese gasto pasa a ser tu parte (o se quita si no pones nada)
+      if (E.yo && r.mia > 0) Object.assign(mov, { importe: r.mia, desc: desc || mov.desc, cat: E.cat, cuenta, fecha, reparto: grupo });
+      else D.movimientos = D.movimientos.filter(m => m !== mov);
+    } else if (E.yo && r.mia > 0) D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: r.mia, desc: desc || E.cat, cat: E.cat, cuenta, fecha, ts: ahora, reparto: grupo });
     E.gente.forEach((p, i) => D.deudas.push({ id: nuevoId(), tipo: 'meDeben', persona: p.nombre, importe: p.v, desc: desc || 'Pago dividido', fecha, cuenta,
       cat: E.yo ? E.cat : undefined, grupo, ts: ahora + 1 + i, pagos: [] }));
     D.ultimaCuenta = cuenta;
