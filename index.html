@@ -377,6 +377,23 @@ input[type=date].texto{min-height:52px}
 .cuadre-b .mini-b.si{background:var(--acento)}
 .cuadre.ok span{color:var(--verde);font-weight:600}
 .cuadre .enlace{border:0;background:none;color:var(--sub);font-size:14px;padding:4px 0}
+.obj-b{cursor:pointer}
+.obj-b .txt-b{flex:1;min-width:0}
+.obj-b .txt-b b{display:block;font-size:16px;font-weight:600}
+.obj-b .txt-b span{display:block;font-size:13px;color:var(--sub);margin-top:1px}
+.obj-fila{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--sep);cursor:pointer}
+.obj-fila:first-of-type{border-top:0}
+#jObjetivos .obj-fila:first-child{border-top:0}
+.obj-fila .ico{width:40px;height:40px;border-radius:12px;background:var(--acento-suave);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.obj-fila .txt{flex:1;min-width:0}
+.obj-fila .txt b{display:block;font-size:15.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obj-fila .txt span{display:block;color:var(--sub);font-size:12.5px;margin-top:2px}
+.obj-fila .barrita{margin-top:7px;height:6px}
+.obj-fila .cant{font-weight:700;font-size:15.5px;white-space:nowrap;text-align:right;align-self:flex-start;margin-top:2px}
+.obj-fila .cant small{display:block;color:var(--sub);font-size:12px;font-weight:500;margin-top:2px}
+.barrita i.hecho{background:var(--verde)}
+.obj-barra{margin:12px 8px 0}
+.etq small{font-weight:400}
 .sobra-op{display:flex;flex-direction:column;gap:6px;padding:0 0 10px}
 .sobra-op button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;border-radius:12px;background:var(--campo);padding:10px 12px;color:var(--txt)}
 .sobra-op button i{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--sep)}
@@ -537,7 +554,8 @@ const DIAS_NOMBRE = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', '
 // ---------- Borrador del cuestionario (se guarda en cada paso por si se cierra la app) ----------
 const VACIO = () => ({
   paso: 0, nombre: '', periodo: '', cuentas: [], fuentes: [], sinIngresos: false, ingresos: {},
-  fijos: [], tieneAhorro: null, ahorro: { importe: null, modo: '', hasta: '' }, saldos: {}, sobrante: ''
+  fijos: [], saldos: {}, guardar: null, ahorro: { importe: null, porCuenta: {} }, restoHasta: '', restoOtra: false,
+  tieneObjetivos: null, objetivos: [], sobrante: ''
 });
 let B = Object.assign(VACIO(), leer('presu_borrador') || {});
 let direccion = 1;
@@ -545,7 +563,7 @@ const guardarBorrador = () => guardar('presu_borrador', B);
 
 // Lista de pasos (cambia según lo que elijas: un paso por cada tipo de ingreso)
 function pasos() {
-  return ['bienvenida', 'nombre', 'periodo', 'cuentas', 'fuentes', ...B.fuentes.map(f => 'ingreso:' + f), 'fijos', 'ahorro', 'saldos', 'sobrante', 'plan'];
+  return ['bienvenida', 'nombre', 'periodo', 'cuentas', 'fuentes', ...B.fuentes.map(f => 'ingreso:' + f), 'fijos', 'saldos', 'guardar', 'objetivos', 'sobrante', 'plan'];
 }
 const palabraPeriodo = () => B.periodo === 'mes' ? 'mes' : 'semana';
 
@@ -569,12 +587,9 @@ function puedeSeguir(id) {
   if (id === 'fuentes') return B.fuentes.length > 0 || B.sinIngresos;
   if (id.startsWith('ingreso:')) { const i = B.ingresos[id.slice(8)]; return i && i.importe > 0 && (id.slice(8) !== 'otro' || (i.nombre || '').trim()); }
   if (id === 'fijos') return B.fijos.every(x => x.importe > 0 && x.nombre.trim());
-  if (id === 'ahorro') {
-    if (B.tieneAhorro === false) return true;
-    if (B.tieneAhorro !== true || !(B.ahorro.importe > 0) || !B.ahorro.modo) return false;
-    return B.ahorro.modo === 'hucha' || (B.ahorro.hasta && B.ahorro.hasta > hoyIso());
-  }
-  if (id === 'saldos') return B.cuentas.every(c => isFinite((B.saldos || {})[c.id])) && (!pideHasta() || (B.inicialHasta && B.inicialHasta > hoyIso()));
+  if (id === 'saldos') return B.cuentas.every(c => isFinite((B.saldos || {})[c.id]));
+  if (id === 'guardar') return !queFaltaGuardar();
+  if (id === 'objetivos') return B.tieneObjetivos === false || (B.tieneObjetivos === true && B.objetivos.length > 0);
   if (id === 'sobrante') return !!B.sobrante;
   return true;
 }
@@ -589,14 +604,9 @@ function porQueNo(id) {
   }
   if (id.startsWith('ingreso:')) return id === 'ingreso:otro' && !(B.ingresos.otro.nombre || '').trim() ? 'Ponle un nombre' : 'Escribe la cantidad';
   if (id === 'fijos') return 'Pon nombre y cantidad a cada gasto (o quítalo con ✕)';
-  if (id === 'saldos') return !B.cuentas.every(c => isFinite((B.saldos || {})[c.id])) ? (B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)')
-    : 'Elige hasta cuándo te tiene que durar';
-  if (id === 'ahorro') {
-    if (B.tieneAhorro !== true) return 'Elige una opción';
-    if (!B.ahorro.modo) return 'Dinos si te lo puedes gastar';
-    if (!(B.ahorro.importe > 0)) return B.cuentas.length > 1 ? 'Escribe cuánto tienes en cada cuenta' : 'Escribe cuánto tienes ahorrado';
-    return 'Elige hasta cuándo (una fecha futura)';
-  }
+  if (id === 'saldos') return B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)';
+  if (id === 'guardar') return queFaltaGuardar();
+  if (id === 'objetivos') return B.tieneObjetivos === true ? 'Añade tu objetivo (o elige «No, de momento no»)' : 'Elige una opción';
   return '';
 }
 
@@ -766,57 +776,67 @@ const PANTALLAS = {
     }
   }),
 
-  ahorro: () => {
-    const a = B.ahorro;
-    const rapidas = fechasRapidas();
-    // Varias cuentas: cuánto hay en cada una (se quitan las cuentas que ya no existen)
-    const varias = B.cuentas.length > 1;
-    if (varias) {
-      a.porCuenta = a.porCuenta || {};
-      Object.keys(a.porCuenta).forEach(id => { if (!B.cuentas.some(c => c.id === id)) delete a.porCuenta[id]; });
-      if (!Object.keys(a.porCuenta).length && a.importe > 0) a.porCuenta[cuentaValida(a.cuenta)] = a.importe;
-      a.importe = sumaPorCuenta(a.porCuenta) || null;
-    }
-    const otraFecha = a.hasta && !rapidas.some(([, f]) => f === a.hasta);
+  // 🐷 ¿Quieres guardar una parte? (de lo que tienes ahora) → va a la hucha. Lo demás: ¿hasta cuándo te tiene que durar?
+  guardar: () => {
+    const a = B.ahorro, varias = B.cuentas.length > 1;
+    a.porCuenta = a.porCuenta || {};
+    Object.keys(a.porCuenta).forEach(id => { if (!B.cuentas.some(c => c.id === id)) delete a.porCuenta[id]; });
     return {
-      html: `<div class="emoji">🐷</div><h1>¿Tienes dinero ahorrado?</h1>
-        <p class="ayuda">Dinero que ya tienes guardado ahora mismo.</p>
-        <div class="opciones" id="oTiene">
-          ${opcion({ v: 'no', emoji: '🙅', titulo: 'No, empiezo de cero', on: B.tieneAhorro === false })}
-          ${opcion({ v: 'si', emoji: '💰', titulo: 'Sí, tengo ahorros', on: B.tieneAhorro === true })}
+      html: `<div class="emoji">🐷</div><h1>¿Quieres guardar una parte?</h1>
+        <p class="ayuda">Tienes ${eur(totalSaldos())}. Lo que guardes va a tu hucha: no cuenta para gastar, pero podrás usarlo si hay un imprevisto.</p>
+        <div class="opciones" id="oGuardar">
+          ${opcion({ v: 'no', emoji: '💸', titulo: 'No, me lo puedo gastar todo', on: B.guardar === false })}
+          ${opcion({ v: 'si', emoji: '🐷', titulo: 'Sí, quiero guardar una parte', on: B.guardar === true })}
         </div>
-        ${B.tieneAhorro ? `
-          <div class="etq">¿Te lo puedes gastar?</div>
-          <div class="opciones" id="oModo">
-            ${opcion({ v: 'gastar', emoji: '💸', titulo: 'Sí, me lo puedo gastar', sub: 'Se reparte entre ' + (B.periodo === 'mes' ? 'los meses' : 'las semanas') + ' hasta la fecha que elijas', on: a.modo === 'gastar' })}
-            ${opcion({ v: 'hucha', emoji: '🐷', titulo: 'No, lo quiero guardar', sub: 'Va a tu hucha: no cuenta para gastar, pero podrás usarlo si hay un imprevisto', on: a.modo === 'hucha' })}
-          </div>
-          ${a.modo ? `
-            <div class="tarjeta" style="margin-top:18px">
-              <div class="sub" style="text-align:center;color:var(--sub);font-size:14px">¿Cuánto tienes ahorrado?</div>
-              ${varias ? filasAhorroCuentas(B.cuentas, a.porCuenta)
-                : `<input id="aImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${fmtImporte(a.importe)}">`}
-            </div>
-            ${a.modo === 'gastar' ? `
-              <div class="etq">¿Hasta cuándo quieres que te dure?</div>
-              <div class="chips" id="aRapidas">
-                ${rapidas.map(([t, f]) => `<button class="chip ${a.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
-                <button class="chip ${otraFecha ? 'on' : ''}" data-f="otra">Otra fecha</button>
-              </div>
-              <input id="aFecha" class="texto ${otraFecha ? '' : 'oculto'}" type="date" min="${hoyIso()}" value="${otraFecha ? a.hasta : ''}" style="margin-top:12px">` : ''}` : ''}` : ''}`,
+        ${B.guardar ? `<div class="tarjeta" style="margin-top:18px">
+            <div class="sub" style="text-align:center;color:var(--sub);font-size:14px">¿Cuánto quieres guardar?</div>
+            ${varias ? filasAhorroCuentas(B.cuentas, a.porCuenta)
+              : `<input id="gImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${fmtImporte(a.importe)}">`}
+          </div>` : ''}
+        <div id="gResto">${B.guardar === null ? '' : bloqueResto()}</div>`,
       alMontar() {
-        elegirUna('oTiene', v => { B.tieneAhorro = v === 'si'; }, true);
-        if (!B.tieneAhorro) return;
-        elegirUna('oModo', v => { if (a.modo !== v) { a.modo = v; if (!a.importe) setTimeout(() => { const i = $('aImporte') || document.querySelector('.ah-imp'); if (i) i.focus(); }, 250); } }, true);
-        if (!a.modo) return;
-        if (varias) montarAhorroCuentas(a.porCuenta, () => { a.importe = sumaPorCuenta(a.porCuenta) || null; a.cuenta = cuentaMayor(a.porCuenta, a.cuenta); guardarBorrador(); actualizarBoton(); });
-        else { a.cuenta = cuentaValida(a.cuenta); $('aImporte').oninput = e => { a.importe = num(e.target.value); guardarBorrador(); actualizarBoton(); }; }
-        if (!$('aRapidas')) return;
-        $('aRapidas').querySelectorAll('.chip').forEach(c => c.onclick = () => {
-          if (c.dataset.f === 'otra') { a.hasta = ''; guardarBorrador(); pintar(true); $('aFecha').classList.remove('oculto'); $('aFecha').focus(); document.querySelector('#aRapidas [data-f=otra]').classList.add('on'); return; }
-          a.hasta = c.dataset.f; guardarBorrador(); pintar(true);
+        elegirUna('oGuardar', v => { B.guardar = v === 'si'; if (B.guardar && !(a.importe > 0)) setTimeout(() => { const x = $('gImporte') || document.querySelector('.ah-imp'); if (x) x.focus(); }, 250); }, true);
+        const resto = () => { $('gResto').innerHTML = B.guardar === null ? '' : bloqueResto(); montarResto(); actualizarBoton(); };
+        const montarResto = () => {
+          if (!$('rRapidas')) return;
+          $('rRapidas').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+            if (c.dataset.f === 'otra') { B.restoHasta = ''; B.restoOtra = true; } else { B.restoHasta = c.dataset.f; B.restoOtra = false; }
+            guardarBorrador(); resto(); if (c.dataset.f === 'otra' && $('rFecha')) $('rFecha').focus();
+          });
+          if ($('rFecha')) $('rFecha').onchange = e => { B.restoHasta = e.target.value; guardarBorrador(); resto(); };
+        };
+        montarResto();
+        if (!B.guardar) return;
+        if (varias) montarAhorroCuentas(a.porCuenta, () => { a.importe = sumaPorCuenta(a.porCuenta) || null; a.cuenta = cuentaMayor(a.porCuenta, a.cuenta); guardarBorrador(); resto(); });
+        else { a.cuenta = cuentaValida(a.cuenta); $('gImporte').oninput = e => { a.importe = num(e.target.value); if (a.importe > 0) a.porCuenta = { [a.cuenta]: r2(a.importe) }; else a.porCuenta = {}; guardarBorrador(); resto(); }; }
+      }
+    };
+  },
+
+  // 🎯 ¿Estás ahorrando para algo? (uno o varios objetivos)
+  objetivos: () => {
+    const P = B.periodo === 'mes' ? 'mes' : 'semana';
+    return {
+      html: `<div class="emoji">🎯</div><h1>¿Estás ahorrando para algo?</h1>
+        <p class="ayuda">Un viaje, un móvil, el carnet… Pre$u apartará un poco ${P === 'mes' ? 'cada mes' : 'cada semana'} para que llegues.</p>
+        <div class="opciones" id="oTieneObj">
+          ${opcion({ v: 'no', emoji: '🙅', titulo: 'No, de momento no', sub: 'Podrás crear objetivos cuando quieras', on: B.tieneObjetivos === false })}
+          ${opcion({ v: 'si', emoji: '🎯', titulo: 'Sí, tengo un objetivo', on: B.tieneObjetivos === true })}
+        </div>
+        ${B.tieneObjetivos ? `${B.objetivos.length ? `<div class="tarjeta" style="margin-top:18px">${B.objetivos.map((o, i) => `<div class="fijo obj-b" data-i="${i}">
+            <span class="ico">${o.emoji || '🎯'}</span><div class="txt-b"><b>${esc(o.nombre)}</b><span>${esc(resumenBorrador(o, P))}</span></div>
+            <button class="quitar" data-q="${i}" aria-label="Quitar">✕</button></div>`).join('')}</div>` : ''}
+          <button class="boton contorno" id="oAnadir" style="margin-top:14px">＋ ${B.objetivos.length ? 'Añadir otro objetivo' : 'Añadir mi objetivo'}</button>` : ''}`,
+      alMontar() {
+        elegirUna('oTieneObj', v => { B.tieneObjetivos = v === 'si'; }, true);
+        if (!B.tieneObjetivos) return;
+        $('oAnadir').onclick = () => hojaObjetivo(null, ctxBorrador(null));
+        document.querySelectorAll('.obj-b').forEach(el => el.onclick = e => {
+          if (e.target.closest('.quitar')) return;
+          const o = B.objetivos[+el.dataset.i]; hojaObjetivo(o, ctxBorrador(o));
         });
-        $('aFecha').onchange = e => { a.hasta = e.target.value; guardarBorrador(); actualizarBoton(); };
+        document.querySelectorAll('.obj-b .quitar').forEach(b => b.onclick = () => { B.objetivos.splice(+b.dataset.q, 1); guardarBorrador(); pintar(true); });
+        if (!B.objetivos.length && !document.querySelector('.hoja')) setTimeout(() => { if ($('oAnadir') && !document.querySelector('.hoja')) $('oAnadir').click(); }, 350);
       }
     };
   },
@@ -842,7 +862,7 @@ const PANTALLAS = {
     const val = id => isFinite(B.saldos[id]) ? txtSaldo(B.saldos[id]) : '';
     return {
       html: `<div class="emoji">💳</div><h1>¿Cuánto tienes ahora?</h1>
-        <p class="ayuda">Mira la app de tu banco y pon lo que hay ahora mismo${varias ? ' en cada cuenta' : ''}, ahorros incluidos.</p>
+        <p class="ayuda">Mira la app de tu banco y pon lo que hay ahora mismo${varias ? ' en cada cuenta' : ''}, ahorros incluidos. En el siguiente paso eliges si quieres guardar una parte.</p>
         <div class="tarjeta" style="margin-top:4px">
           ${varias ? `${B.cuentas.map(c => `<div class="saldo-fila"><span>${emojiCuenta(c.nombre)} ${esc(c.nombre.trim() || 'Sin nombre')}</span>
               <input class="s-imp" data-id="${c.id}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${val(c.id)}"></div>`).join('')}
@@ -850,27 +870,10 @@ const PANTALLAS = {
           : `<div class="sub" style="text-align:center;color:var(--sub);font-size:14px">${emojiCuenta(uno.nombre)} ${esc(uno.nombre.trim())}</div>
             <input id="sImporte" class="importe" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0 €" autocomplete="off" value="${val(uno.id)}">`}
         </div>
-        <p class="nota" id="sNota" style="margin:12px 4px 0">${notaSaldos()}</p>
-        <div id="sHasta">${bloqueHasta()}</div>`,
+        <p class="nota" id="sNota" style="margin:12px 4px 0">${notaSaldos()}</p>`,
       alMontar() {
         const poner = (id, v) => { const n = num(v); if (isFinite(n)) B.saldos[id] = r2(n); else delete B.saldos[id]; };
-        // «¿Hasta cuándo?» aparece o desaparece mientras escribe (sin volver a pintar: no se cierra el teclado)
-        const montarHasta = () => {
-          if (!$('hRapidas')) return;
-          $('hRapidas').querySelectorAll('.chip').forEach(c => c.onclick = () => {
-            if (c.dataset.f === 'otra') { B.inicialHasta = ''; B.inicialOtra = true; }
-            else { B.inicialHasta = c.dataset.f; B.inicialOtra = false; }
-            guardarBorrador(); $('sHasta').innerHTML = bloqueHasta(); montarHasta(); $('sNota').innerHTML = notaSaldos(); actualizarBoton();
-            if (c.dataset.f === 'otra') $('hFecha').focus();
-          });
-          $('hFecha').onchange = e => { B.inicialHasta = e.target.value; guardarBorrador(); $('sNota').innerHTML = notaSaldos(); actualizarBoton(); };
-        };
-        let habia = pideHasta();
-        const cambio = () => {
-          guardarBorrador(); actualizarBoton(); if ($('sTotal')) $('sTotal').textContent = eur(totalSaldos()); $('sNota').innerHTML = notaSaldos();
-          if (pideHasta() !== habia) { habia = pideHasta(); $('sHasta').innerHTML = bloqueHasta(); montarHasta(); }
-        };
-        montarHasta();
+        const cambio = () => { guardarBorrador(); actualizarBoton(); if ($('sTotal')) $('sTotal').textContent = eur(totalSaldos()); $('sNota').innerHTML = notaSaldos(); };
         if (varias) document.querySelectorAll('.s-imp').forEach(i => i.oninput = () => { poner(i.dataset.id, i.value); cambio(); });
         else $('sImporte').oninput = e => { poner(uno.id, e.target.value); cambio(); };
         const primero = $('sImporte') || document.querySelector('.s-imp');
@@ -886,7 +889,7 @@ const PANTALLAS = {
     // Un periodo «normal»: el primero después de lo que tenías al empezar
     let p1 = siguientePeriodo(c.ini, d.periodo);
     if (!mes && conCobro) while (cicloDeSemana(d, p1) === c0) p1 = masDias(p1, 7);
-    const r1 = calcular(d, h, p1), normal = r2(r1.entra + r1.deInicio + r1.deAhorros - r1.fijos);
+    const r1 = calcular(d, h, p1), normal = r2(r1.entra + r1.deInicio + r1.deAhorros - r1.fijos - (r1.aObjetivos || 0));
     const cobro = conCobro && d.ingresos.some(x => x.frec === 'mes' && x.dia === d.diaMes) && (mes || primerCicloSem(d) === c0);
     const filas = [];
     if (c.deInicio) filas.push([d.inicialHasta ? `Lo que tienes ahora (${eur(d.inicial)} hasta el ${fechaCorta(d.inicialHasta)})`
@@ -894,7 +897,8 @@ const PANTALLAS = {
     if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
     if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
     if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
-    const hucha = B.tieneAhorro && B.ahorro.modo === 'hucha' ? B.ahorro.importe : 0;
+    if (c.aObjetivos) filas.push(['🎯 Para tus objetivos', '−' + eur(c.aObjetivos)]);
+    const hucha = d.ahorro ? d.ahorro.importe : 0;
     const despues = cobro ? 'Cuando cobres (' + fechaCorta(cicloSiguiente(c0)) + ')'
       : !mes && conCobro ? 'Desde el ' + fechaCorta(p1) : mes ? 'Los demás meses' : 'Las demás semanas';
     return {
@@ -909,9 +913,12 @@ const PANTALLAS = {
           ${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
           <div class="linea total"><span>Para gastar</span><b>${eur(c.total)}</b></div></div>` : ''}
         <div class="tarjeta plan-luego"><span>${despues}</span><b>unos ${eur(normal)} ${esteP}</b></div>
-        ${hucha ? `<div class="tarjeta" style="margin-top:14px"><div class="linea" style="border-top:0"><span>🐷 En la hucha (no se toca)</span><b>${eur(hucha)}</b></div></div>` : ''}
+        ${hucha || d.objetivos.length ? `<div class="tarjeta" style="margin-top:14px">${hucha ? `<div class="linea" style="border-top:0"><span>🐷 En la hucha (no se toca)</span><b>${eur(hucha)}</b></div>` : ''}
+          ${d.objetivos.map((o, i) => { const v = aporteObjetivo(o, c.ini, d.periodo, o.inicial || 0);
+            return `<div class="linea" ${!hucha && !i ? 'style="border-top:0"' : ''}><span>${o.emoji} ${esc(o.nombre)}${o.meta ? ' · ' + eur(o.meta) : ''}</span><b>${v ? eur(v) + ' ' + esteP : '¡Ya lo tienes!'}</b></div>`; }).join('')}</div>` : ''}
         <p class="nota" style="margin-top:14px">${normal < 0
-          ? 'Ahora mismo pagas más de lo que te entra. Puedes revisar las cantidades volviendo atrás.'
+          ? (r1.aObjetivos > 0 && normal + r1.aObjetivos >= 0 ? 'Apartas para tus objetivos más de lo que tienes para gastar. Vuelve atrás y dales más tiempo o baja la cantidad.'
+            : 'Ahora mismo pagas más de lo que te entra. Puedes revisar las cantidades volviendo atrás.')
           : (!mes && conCobro ? 'Lo de cada mes se reparte entre sus semanas, así que cambia un poco según el mes. ' : '')
             + (mes ? 'Si un mes' : 'Si una semana') + ' gastas menos, lo que sobre ' + (B.sobrante === 'ahorro' ? 'irá a tus ahorros.' : mes ? 'se sumará al mes siguiente.' : 'se sumará a la semana siguiente.')}
           Todo se puede cambiar en Ajustes.</p>`,
@@ -927,41 +934,60 @@ function fechasRapidas() {
   const en12 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
   return [['Fin de curso', finCurso], ['Fin de año', finAno], ['En 6 meses', en6], ['En 1 año', en12]].filter(([, f]) => f > hoyIso());
 }
-// Si no cobras cada mes, lo que tienes ahora (sin ahorros) se reparte hasta una fecha: hay que preguntarla
-const paraGastarAhora = () => r2(totalSaldos() - (B.tieneAhorro ? (B.ahorro.importe || 0) : 0));
-const pideHasta = () => !hayIngresoMensual(datosDelBorrador()) && Object.keys(B.saldos || {}).length > 0 && paraGastarAhora() > 0;
 const totalSaldos = () => r2(B.cuentas.reduce((t, c) => t + (isFinite((B.saldos || {})[c.id]) ? B.saldos[c.id] : 0), 0));
-// Debajo de «¿Cuánto tienes ahora?»: cuánto es para gastar y qué pasa con lo que toca hoy
-function bloqueHasta() {
-  if (!pideHasta()) return '';
-  const rapidas = fechasRapidas(), f = B.inicialHasta, otra = B.inicialOtra || (f && !rapidas.some(([, x]) => x === f));
-  return `<div class="etq">¿Hasta cuándo te tiene que durar?</div>
-    <div class="chips" id="hRapidas">${rapidas.map(([t, x]) => `<button class="chip ${!otra && f === x ? 'on' : ''}" data-f="${x}">${t}</button>`).join('')}
+const huchaBorrador = () => B.guardar ? (B.cuentas.length > 1 ? sumaPorCuenta(B.ahorro.porCuenta) : r2(B.ahorro.importe > 0 ? B.ahorro.importe : 0)) : 0;
+const restoBorrador = () => r2(totalSaldos() - huchaBorrador());
+const cobraBorrador = () => { const d = datosDelBorrador(); return hayIngresoMensual(d) ? cicloSiguiente(inicioCiclo(hoyIso())) : null; };
+// Lo que falta para poder seguir en «¿Quieres guardar una parte?» ('' = nada)
+function queFaltaGuardar() {
+  if (B.guardar === null) return 'Elige una opción';
+  if (B.guardar) {
+    const hu = huchaBorrador();
+    if (!(hu > 0)) return B.cuentas.length > 1 ? 'Escribe cuánto quieres guardar en cada cuenta' : 'Escribe cuánto quieres guardar';
+    const pasa = B.cuentas.find(c => (B.cuentas.length > 1 ? B.ahorro.porCuenta[c.id] || 0 : hu) > ((B.saldos || {})[c.id] || 0) + 0.004);
+    if (B.cuentas.length > 1 && pasa) return 'En ' + pasa.nombre.trim() + ' guardas más de lo que tienes';
+    if (hu > totalSaldos() + 0.004) return 'Guardas más de lo que tienes';
+  }
+  if (restoBorrador() > 0 && !(B.restoHasta === 'cobro' ? cobraBorrador() : B.restoHasta > hoyIso())) return 'Elige hasta cuándo te tiene que durar';
+  return '';
+}
+// Debajo de «¿Quieres guardar una parte?»: hasta cuándo te dura lo demás
+function bloqueResto() {
+  const resto = restoBorrador(), h = hoyIso(), P = B.periodo === 'mes' ? 'mes' : 'semana';
+  if (B.guardar && !(huchaBorrador() > 0)) return '';
+  if (!(resto > 0)) return totalSaldos() > 0 ? '<p class="nota" style="margin:12px 4px 0">Lo guardas todo: lo de cada ' + (P === 'mes' ? 'mes' : 'semana') + ' saldrá de lo que te entre.</p>' : '';
+  const cobro = cobraBorrador(), rapidas = fechasRapidas(), f = B.restoHasta, otra = B.restoOtra || (f && f !== 'cobro' && !rapidas.some(([, x]) => x === f));
+  if (f === 'cobro' && !cobro) B.restoHasta = '';
+  let nota = '';
+  if (B.restoHasta === 'cobro') nota = 'Lo usas hasta que cobres (' + fechaCorta(cobro) + '). Después, cada ' + (P === 'mes' ? 'mes' : 'semana') + ' sale de lo que cobras.';
+  else if (B.restoHasta > h) {
+    const n = Math.max(1, contarPeriodos(inicioPeriodo(h, P), inicioPeriodo(B.restoHasta, P), P));
+    nota = 'Unos <b>' + eur(parteDe(resto, n, 0)) + '</b> ' + (P === 'mes' ? 'al mes' : 'a la semana') + ' hasta el ' + fechaCorta(B.restoHasta) + ' ' + B.restoHasta.slice(0, 4) + ', además de lo que te entre.';
+  }
+  return `<div class="etq">¿Hasta cuándo te tiene que durar ${B.guardar ? 'el resto' : 'lo que tienes'} (${eur(resto)})?</div>
+    <div class="chips" id="rRapidas">${cobro ? `<button class="chip ${B.restoHasta === 'cobro' ? 'on' : ''}" data-f="cobro">Hasta que cobre (${fechaCorta(cobro)})</button>` : ''}
+      ${rapidas.map(([t, x]) => `<button class="chip ${!otra && B.restoHasta === x ? 'on' : ''}" data-f="${x}">${t}</button>`).join('')}
       <button class="chip ${otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
-    <input id="hFecha" class="texto ${otra ? '' : 'oculto'}" type="date" min="${masDias(hoyIso(), 1)}" value="${otra && f ? f : ''}" style="margin-top:12px">`;
+    ${otra ? `<input id="rFecha" class="texto" type="date" min="${masDias(h, 1)}" value="${B.restoHasta && B.restoHasta !== 'cobro' ? B.restoHasta : ''}" style="margin-top:12px">` : ''}
+    ${nota ? `<p class="nota" style="margin:12px 4px 0">${nota}</p>` : ''}`;
+}
+// Objetivos en el cuestionario: misma hoja que en la app, pero se guardan en el borrador
+function resumenBorrador(o, P) {
+  const u = P === 'mes' ? 'al mes' : 'a la semana';
+  return o.modo === 'fecha' ? eur(o.meta) + ' para el ' + fechaCorta(o.hasta) + ' ' + o.hasta.slice(0, 4) : eur(o.cuota) + ' ' + u + (o.meta ? ' hasta ' + eur(o.meta) : '');
+}
+function ctxBorrador(o) {
+  const d = datosDelBorrador(); fijarDiaMes(d);
+  const usado = B.objetivos.filter(x => x !== o).reduce((t, x) => t + (x.inicial || 0), 0);
+  return { P: B.periodo === 'mes' ? 'mes' : 'semana', borrador: true, huchaDisp: Math.max(0, r2(huchaBorrador() - usado)), base: 0, lleva: 0,
+    guardar: datos => { if (o) Object.assign(o, datos); else B.objetivos.push(Object.assign({ id: nuevoId() }, datos)); guardarBorrador(); cerrarHoja(); pintar(true); } };
 }
 function notaSaldos() {
-  const d = datosDelBorrador(), h = hoyIso(), total = totalSaldos(), aho = B.tieneAhorro ? (B.ahorro.importe || 0) : 0;
+  const d = datosDelBorrador(), h = hoyIso();
   fijarDiaMes(d);
-  const cobra = hayIngresoMensual(d);
-  const hasta = cobra ? 'hasta que cobres (' + fechaCorta(cicloSiguiente(inicioCiclo(h))) + ')' : B.inicialHasta && B.inicialHasta > h ? 'hasta el ' + fechaCorta(B.inicialHasta) + ' ' + B.inicialHasta.slice(0, 4) : '';
   const hoyToca = [...d.ingresos.map(x => [x, '+']), ...d.fijos.map(x => [x, '−'])].filter(([x]) => fechasDe(x, h, h).length)
     .map(([x, sg]) => esc(x.nombre) + ' ' + sg + eur(x.importe));
-  const partes = [];
-  if (Object.keys(B.saldos || {}).length) {
-    let t = (aho ? 'De esto, ' + eur(aho) + ' son tus ahorros. ' : '') + 'Para gastar' + (hasta ? ' ' + hasta : '') + ': <b>' + eur(Math.max(0, r2(total - aho))) + '</b>';
-    // Sin cobro mensual: cuánto toca cada semana o mes
-    if (!cobra && hasta && total - aho > 0) {
-      const P = B.periodo === 'mes' ? 'mes' : 'semana', n = Math.max(1, contarPeriodos(inicioPeriodo(h, P), inicioPeriodo(B.inicialHasta, P), P));
-      t += ' · unos <b>' + eur(parteDe(r2(total - aho), n, 0)) + (P === 'mes' ? ' al mes' : ' a la semana') + '</b>';
-    }
-    partes.push(t);
-  }
-  // ¿Mucho dinero? Puede que parte sean ahorros y no lo haya dicho
-  const alMes = d.ingresos.reduce((t, x) => t + (x.frec === 'mes' ? x.importe : x.importe * 52 / 12), 0);
-  if (cobra && total - aho > Math.max(300, alMes * 1.5)) partes.push('¿Parte de esto son ahorros? Vuelve atrás y ponlo en «¿Tienes dinero ahorrado?», o te lo contaremos todo para gastar.');
-  if (hoyToca.length) partes.push('Lo que te toca hoy (' + hoyToca.join(', ') + ') cuenta como si ya hubiera pasado.');
-  return partes.join('<br>');
+  return hoyToca.length ? 'Lo que te toca hoy (' + hoyToca.join(', ') + ') cuenta como si ya hubiera pasado.' : '';
 }
 
 // ---------- Ayudas para los botones ----------
@@ -1022,25 +1048,34 @@ function datosDelBorrador() {
     }));
   const hoy = hoyIso(), saldos = B.saldos || {}, conSaldo = B.cuentas.some(c => isFinite(saldos[c.id]));
   const total = B.cuentas.reduce((t, c) => t + (isFinite(saldos[c.id]) ? saldos[c.id] : 0), 0);
+  const periodo = B.periodo || 'semana';
+  fijarDiaMes({ diaMes: diaDeCobro(ingresos) });   // (los objetivos se reparten con el mes que empieza el día que cobras)
+  const hucha = huchaBorrador(), objetivos = B.tieneObjetivos ? (B.objetivos || []) : [];
+  const enObjetivos = r2(objetivos.reduce((t, o) => t + (o.inicial || 0), 0)), huchaFinal = r2(hucha - enObjetivos);
+  // por cuenta: lo de los objetivos se quita de la cuenta que más tiene
+  const porCuenta = {};
+  if (hucha > 0) { if (B.cuentas.length > 1) Object.assign(porCuenta, B.ahorro.porCuenta); else porCuenta[cuentaValida(B.ahorro.cuenta)] = hucha; }
+  let quitar = enObjetivos;
+  Object.keys(porCuenta).sort((p, q) => porCuenta[q] - porCuenta[p]).forEach(id => { const v = Math.min(quitar, porCuenta[id]); porCuenta[id] = r2(porCuenta[id] - v); quitar = r2(quitar - v); if (porCuenta[id] <= 0) delete porCuenta[id]; });
   return {
     version: 1,
     creado: hoy,
     nombre: B.nombre.trim(),
-    periodo: B.periodo || 'semana',
+    periodo,
     sobrante: B.sobrante,
     diaMes: diaDeCobro(ingresos),   // tu mes empieza el día que cobras
     // Lo que tenías al empezar (sin tus ahorros): para gastar hasta que cobras
-    inicial: conSaldo ? r2(Math.max(0, total - (B.tieneAhorro ? (B.ahorro.importe || 0) : 0))) : null,
-    // Si no cobras cada mes: lo que tienes se reparte hasta esta fecha
-    ...(!ingresos.some(x => x.frec === 'mes') && conSaldo && B.inicialHasta && B.inicialHasta > hoy ? { inicialHasta: B.inicialHasta } : {}),
+    // Lo que tienes ahora menos lo que guardas: para gastar hasta que cobras, o repartido hasta la fecha que elegiste
+    inicial: conSaldo ? r2(Math.max(0, total - hucha)) : null,
+    ...(conSaldo && B.restoHasta && B.restoHasta !== 'cobro' && B.restoHasta > hoy ? { inicialHasta: B.restoHasta } : {}),
     ingresos,
     fijos: B.fijos.map(x => ({ id: x.id, emoji: x.emoji, nombre: x.nombre.trim(), importe: r2(x.importe || 0), frec: x.frec, dia: 1, cuenta: cuentaValida(x.cuenta) })),
-    ahorro: B.tieneAhorro ? { importe: r2(B.ahorro.importe || 0), modo: B.ahorro.modo, hasta: B.ahorro.modo === 'gastar' ? B.ahorro.hasta : '', cuenta: cuentaValida(B.ahorro.cuenta),
-      ...(B.cuentas.length > 1 && B.ahorro.porCuenta ? { porCuenta: Object.assign({}, B.ahorro.porCuenta) } : {}) } : null,
+    // Hucha: lo que guardas, menos lo que pusiste en tus objetivos
+    ahorro: huchaFinal > 0 ? { importe: huchaFinal, modo: 'hucha', hasta: '', cuenta: cuentaMayor(porCuenta, cuentaValida(B.ahorro.cuenta)), porCuenta } : null,
+    objetivos: objetivos.map(o => Object.assign({}, o, { creado: hoy, planes: [planObjetivo(o, inicioPeriodo(hoy, periodo), o.inicial || 0, periodo)] })),
     cuentas: B.cuentas.map(c => Object.assign({ id: c.id, nombre: c.nombre.trim(), emoji: emojiCuenta(c.nombre) },
       isFinite(saldos[c.id]) ? { saldo: r2(saldos[c.id]), saldoFecha: hoy, saldoEn: Date.now() } : {})),
     categorias: CATEGORIAS.slice(), catVersion: CAT_VERSION,
-    objetivos: [],
     cambios: {},        // aquí irán los cambios de un periodo concreto (ej: este mes la paga fue 800 €)
     movimientos: []
   };
@@ -1156,6 +1191,28 @@ function tramosInicial(d) {
   return [{ desde: primero, ultimo, n: Math.max(1, contarPeriodos(primero, ultimo, P)), total: r2(d.inicial) }];
 }
 const sumaTramo = (t, P) => { let s = 0; for (let p = t.desde; p <= t.ultimo; p = siguientePeriodo(p, P)) s += cuotaTramo(t, p, P); return r2(s); };
+// ---------- 🎯 Objetivos de ahorro ----------
+// D.objetivos = [{ id, nombre, emoji, meta (€ o null), modo: 'fecha'|'semanal', hasta?, cuota?, inicial (lo que pusiste de la hucha), creado,
+//   planes: [{ desde, modo: 'fecha', ultimo, n, total } | { desde, modo: 'semanal', cuota }], cerrado? (primer periodo sin aportar), cerradoEn?, final? }]
+// Cada semana (o mes) se aparta lo que toca y se resta de lo que puedes gastar, como un gasto fijo.
+// - Para una fecha: lo que falta se reparte en céntimos exactos hasta esa fecha.  - Cada semana: una cantidad fija (hasta llegar a la meta, si hay).
+// Si se cambia, el plan nuevo empieza en ese periodo (lo de antes no cambia).
+function aporteObjetivo(o, p, P, acc) {
+  if (o.cerrado && p >= o.cerrado) return 0;
+  let plan = null;
+  (o.planes || []).forEach(x => { if (x.desde <= p) plan = x; });
+  if (!plan) return 0;
+  let v = plan.modo === 'fecha' ? (p <= plan.ultimo ? cuotaTramo(plan, p, P) : 0) : plan.cuota || 0;
+  if (o.meta > 0) v = Math.min(v, Math.max(0, r2(o.meta - acc)));
+  return r2(Math.max(0, v));
+}
+function planObjetivo(o, desde, accAntes, P) {
+  if (o.modo === 'fecha') {
+    const ultimo = inicioPeriodo(o.hasta < desde ? desde : o.hasta, P);
+    return { desde, modo: 'fecha', ultimo, n: Math.max(1, contarPeriodos(desde, ultimo, P)), total: r2(Math.max(0, (o.meta || 0) - accAntes)) };
+  }
+  return { desde, modo: 'semanal', cuota: r2(o.cuota || 0) };
+}
 // «Lo que sobra» puede cambiarse en Ajustes: cuenta desde el periodo en que se cambió
 const sobranteEn = (d, p) => { let v = d.sobrante; (d.sobranteHist || []).forEach(x => { if (x.desde <= p) v = x.valor; }); return v; };
 
@@ -1191,6 +1248,8 @@ function calcular(d, hoy = hoyIso(), hasta) {
   const trIni = tramosInicial(d);   // si eligió hasta cuándo le tiene que durar lo que tenía, manda esto
 
   let arrastre = 0, ahorrado = 0, res = null;
+  const objs = d.objetivos || [], objAcc = {};
+  objs.forEach(o => { objAcc[o.id] = r2(o.inicial || 0); });
   for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
     const fin = finPeriodo(p, P);
     let entra, fijos, nSemanas = 0, deInicio = 0, ciclo = null;
@@ -1209,11 +1268,14 @@ function calcular(d, hoy = hoyIso(), hasta) {
     if (trIni.length) deInicio = cuotaEn(trIni, p, P);
     entra = r2(entra); fijos = r2(fijos); deInicio = r2(deInicio);     // a céntimos, para que lo que se ve sume exacto
     const deAhorros = r2(cuotaEn(tramos, p, P));
+    let aObjetivos = 0;
+    objs.forEach(o => { const v = aporteObjetivo(o, p, P, objAcc[o.id]); objAcc[o.id] = r2(objAcc[o.id] + v); aObjetivos += v; });
+    aObjetivos = r2(aObjetivos);
     const movs = d.movimientos.filter(x => x.fecha >= p && x.fecha <= fin);
     const extras = movs.filter(x => x.tipo === 'ingreso').reduce((s, x) => s + x.importe, 0);
-    const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha).reduce((s, x) => s + x.importe, 0);
-    const total = entra + deInicio + deAhorros - fijos + arrastre + extras;
-    res = { ini: p, fin, entra, deInicio, deAhorros, fijos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo };
+    const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha && !x.objetivo).reduce((s, x) => s + x.importe, 0);
+    const total = entra + deInicio + deAhorros - fijos - aObjetivos + arrastre + extras;
+    res = { ini: p, fin, entra, deInicio, deAhorros, fijos, aObjetivos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo };
     // Al acabar un periodo: si falta dinero, se resta del siguiente; si sobra, al ahorro o al siguiente (según eligió)
     if (p < actual) {
       if (res.queda < 0 || sobranteEn(d, p) === 'siguiente') arrastre = res.queda;
@@ -1243,7 +1305,9 @@ function calcular(d, hoy = hoyIso(), hasta) {
     for (let p = siguientePeriodo(actual, P); p <= fin; p = siguientePeriodo(p, P)) inicialQueda += r2(cuotaEn(trIni, p, P));
     inicialQueda = r2(inicialQueda);
   }
-  return Object.assign(res, { ahorrado: r2(ahorrado), hucha, pendientes, gastarQueda, inicialQueda });
+  // Objetivos: lo que llevas apartado en cada uno (los cerrados ya se usaron o se movieron)
+  const objetivosAhorrado = r2(objs.filter(o => !o.cerradoEn).reduce((s, o) => s + objAcc[o.id], 0));
+  return Object.assign(res, { ahorrado: r2(ahorrado), hucha, pendientes, gastarQueda, inicialQueda, objAcc, objetivosAhorrado });
 }
 
 // ---------- Estado de la app ----------
@@ -1251,7 +1315,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
 const CATEGORIAS = ['Comida', 'Ocio', 'Súper', 'Transporte', 'Fiesta', 'Viajes', 'Otros'];
 const CAT_VERSION = 2;   // súbelo si cambias la lista y quieres que se ponga a todos
 const CAT_EMOJI = { 'Comer fuera': '🍔', 'Súper': '🛒', Fiesta: '🍻', Compras: '🛍️', Transporte: '🚌', Ocio: '🎬', Ropa: '👕', Viajes: '✈️',
-  'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔', Descuadre: '⚖️', Deudas: '🤝' };
+  'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔', Descuadre: '⚖️', Deudas: '🤝', Objetivos: '🎯' };
 const emojiCat = c => CAT_EMOJI[c] || '🏷️';
 const ICONOS = {
   inicio: '<svg viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>',
@@ -1348,6 +1412,7 @@ function vistaInicio() {
   if (c.entra) filas.push(['Te entra', '+' + eur(c.entra)]);
   if (c.deAhorros) filas.push(['De tus ahorros', '+' + eur(c.deAhorros)]);
   if (c.fijos) filas.push(['Gastos fijos', '−' + eur(c.fijos)]);
+  if (c.aObjetivos) filas.push(['🎯 Para tus objetivos', '−' + eur(c.aObjetivos)]);
   if (Math.abs(c.arrastre) >= .005) filas.push([mes ? 'Del mes pasado' : 'De la semana pasada', (c.arrastre > 0 ? '+' : '−') + eur(Math.abs(c.arrastre))]);
   if (c.extras) filas.push(['Ingresos extra', '+' + eur(c.extras)]);
   filas.push(['Gastado', (c.gastado ? '−' : '') + eur(c.gastado)]);
@@ -1467,7 +1532,7 @@ function vistaInicio() {
 function listaAtajos(tipo) {
   const g = new Map();
   D.movimientos.forEach((x, i) => {
-    if (x.tipo !== tipo || x.hucha || x.deuda || x.reparto || !(x.desc || '').trim()) return;
+    if (x.tipo !== tipo || x.hucha || x.objetivo || x.deuda || x.reparto || !(x.desc || '').trim()) return;
     const k = x.desc.trim().toLowerCase() + '|' + (x.cat || '') + '|' + x.cuenta;
     const v = g.get(k) || { n: 0 };
     g.set(k, { n: v.n + 1, ult: i, m: x });
@@ -2067,6 +2132,7 @@ function hojaMovimiento(id) {
   if (!m) return;
   const deu = m.deuda && D.deudas.find(x => x.id === m.deuda);   // lo que viene de una deuda se cambia desde la deuda
   if (deu) return hojaDeuda(deu);
+  if (m.objetivo || m.origen === 'objetivo') return aviso('Es dinero de un objetivo: no cuenta en tu ' + (D.periodo === 'mes' ? 'mes' : 'semana'));
   const E = { importe: fmtImporte(m.importe), desc: m.desc, cat: m.cat || 'Otros', cuenta: cuentaApp(m.cuenta), fecha: m.fecha, hucha: !!m.hucha };
   const gasto = m.tipo === 'gasto', h = hoyIso(), min = inicioPeriodo(D.creado, D.periodo);
   const hucha = calcular(D).hucha, huchaLibre = hucha === null ? null : hucha + (m.hucha ? m.importe : 0);
@@ -2162,7 +2228,7 @@ function vistaResumen() {
 
   // Gasto por categoría (lo pagado con la hucha va aparte)
   // «Desde el principio» llega hasta el final de este periodo: lo apuntado para semanas o meses futuros aún no cuenta
-  const gastos = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && m.fecha <= c.fin && m.fecha >= (resTodo ? fechaMin() : c.ini));
+  const gastos = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && !m.objetivo && m.fecha <= c.fin && m.fecha >= (resTodo ? fechaMin() : c.ini));
   const porCat = {};
   gastos.forEach(m => { porCat[m.cat || 'Otros'] = (porCat[m.cat || 'Otros'] || 0) + m.importe; });
   const cats = Object.entries(porCat).sort((x, y) => y[1] - x[1]);
@@ -2180,6 +2246,8 @@ function vistaResumen() {
       </div>
 
       ${ahorros.length ? `<div class="tarjeta"><div class="tit-tarjeta">Tus ahorros</div>${ahorros.map(fila).join('')}</div>` : ''}
+
+      ${tarjetaObjetivos(c)}
 
       <div class="tarjeta">
         <div class="cab-tarjeta"><div class="tit-tarjeta">Deberías tener</div></div>
@@ -2205,6 +2273,8 @@ function vistaResumen() {
     montar() {
       if ($('rSaldos')) $('rSaldos').onclick = () => hojaCuadrar();
       if ($('rCuadrar')) $('rCuadrar').onclick = () => hojaCuadrar();
+      if ($('rObjNuevo')) $('rObjNuevo').onclick = () => hojaObjetivo(null, ctxApp(null));
+      montarObjetivos($('rObjetivos'));
       if ($('rCuadraNo')) $('rCuadraNo').onclick = () => hojaCuadrar();
       if ($('rCuadraSi')) $('rCuadraSi').onclick = () => { D.cuadrado = hoyIso(); guardarDatos(); aviso('Perfecto, todo cuadra ✓'); pintarApp(); };
       segmento('rCat', v => { resTodo = v === 'todo'; pintarApp(); });
@@ -2224,7 +2294,7 @@ function tocaCuadrar() {
   if (D.cuadrado && D.cuadrado >= act) return null;
   if (D.cuadreAplazado && D.cuadreAplazado >= h) return null;
   const fin = finPeriodo(prev, P);
-  const n = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && m.origen !== 'cuadre' && m.fecha >= prev && m.fecha <= fin).length;
+  const n = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && !m.objetivo && m.origen !== 'cuadre' && m.fecha >= prev && m.fecha <= fin).length;
   return n < 3 ? { prev, fin, n } : null;
 }
 function textoCuadrado() {
@@ -2867,6 +2937,272 @@ function hojaRecuperar(c, d) {
   }));
 }
 
+// ---------- 🎯 Objetivos: pantallas ----------
+const OBJ_RAPIDOS = [['✈️', 'Viaje'], ['📱', 'Móvil'], ['🚗', 'Coche'], ['🪪', 'Carnet de conducir'], ['💻', 'Ordenador'], ['🎮', 'Consola'], ['🎁', 'Regalo'], ['🛟', 'Imprevistos'], ['🎯', 'Otro']];
+const objetivosVivos = () => (D.objetivos || []).filter(o => !o.cerradoEn);
+const unidad = P => P === 'mes' ? 'al mes' : 'a la semana';
+// Lo que llevabas en un objetivo antes de este periodo (para que un cambio empiece aquí sin tocar lo de antes)
+function accAntes(o, act) {
+  const P = D.periodo, prev = periodoAnterior(act, P);
+  if (prev < inicioPeriodo(D.creado, P)) return r2(o.inicial || 0);
+  const v = (calcular(D, hoyIso(), prev).objAcc || {})[o.id];
+  return r2(v == null ? o.inicial || 0 : v);
+}
+// Cuánto llevas, lo que apartas ahora y cuándo lo tendrás
+function infoObjetivo(o, c) {
+  c = c || calcular(D);
+  const P = D.periodo, act = inicioPeriodo(hoyIso(), P), lleva = r2((c.objAcc || {})[o.id] ?? (o.inicial || 0));
+  const antes = accAntes(o, act), ahora = r2(lleva - antes), proximo = aporteObjetivo(o, siguientePeriodo(act, P), P, lleva);
+  const hecho = o.meta > 0 && lleva >= o.meta - 0.004;
+  let cuando = null;
+  if (o.meta > 0 && !hecho) {
+    let acc = lleva;
+    for (let p = siguientePeriodo(act, P), k = 0; k < 600; p = siguientePeriodo(p, P), k++) {
+      const v = aporteObjetivo(o, p, P, acc); if (!v) break;
+      acc = r2(acc + v); if (acc >= o.meta - 0.004) { cuando = finPeriodo(p, P); break; }
+    }
+  }
+  const pct = o.meta > 0 ? Math.min(100, lleva / o.meta * 100) : 0;
+  const cada = ahora || proximo;
+  const sub = hecho ? '🎉 ¡Conseguido!'
+    : o.modo === 'fecha' ? (cada ? 'Unos ' + eur(cada) + ' ' + unidad(P) + ' · ' : '') + 'hasta el ' + fechaLarga(o.hasta)
+    : eur(o.cuota || 0) + ' ' + unidad(P) + (cuando ? ' · lo tendrás hacia el ' + fechaLarga(cuando) : '');
+  return { lleva, ahora, proximo, cuando, hecho, pct, sub };
+}
+function filaObjetivo(o, c) {
+  const i = infoObjetivo(o, c);
+  return `<div class="obj-fila" data-obj="${o.id}"><div class="ico">${o.emoji || '🎯'}</div>
+    <div class="txt"><b>${esc(o.nombre)}</b><span>${esc(i.sub)}</span>${o.meta > 0 ? `<div class="barrita"><i class="${i.hecho ? 'hecho' : ''}" style="width:${i.pct.toFixed(1)}%"></i></div>` : ''}</div>
+    <div class="cant">${eur(i.lleva)}${o.meta > 0 ? `<small>de ${eur(o.meta)}</small>` : ''}</div></div>`;
+}
+// Resumen: tarjeta «Tus objetivos» (siempre: si no hay, invita a crear uno)
+function tarjetaObjetivos(c) {
+  const l = objetivosVivos();
+  return `<div class="tarjeta" id="rObjetivos">
+    <div class="cab-tarjeta"><div class="tit-tarjeta">Tus objetivos</div>${l.length ? '<button class="enlace" id="rObjNuevo">＋ Nuevo</button>' : ''}</div>
+    ${l.length ? l.map(o => filaObjetivo(o, c)).join('')
+      : `<p class="nota" style="margin:0 0 12px">¿Ahorras para algo? Un viaje, un móvil, el carnet… Ponte un objetivo y Pre$u aparta un poco ${D.periodo === 'mes' ? 'cada mes' : 'cada semana'}.</p>
+         <button class="boton contorno" id="rObjNuevo">🎯 Crear un objetivo</button>`}
+  </div>`;
+}
+function montarObjetivos(raiz) {
+  raiz = raiz || document;
+  raiz.querySelectorAll('.obj-fila[data-obj]').forEach(el => el.onclick = () => { const o = (D.objetivos || []).find(x => x.id === el.dataset.obj); if (o) hojaVerObjetivo(o); });
+}
+
+// Hucha ↔ objetivos
+function quitarDeHucha(x) {
+  const a = D.ahorro; if (!a || !(x > 0)) return;
+  a.importe = r2(a.importe - x);
+  if (a.porCuenta) {   // se quita de la cuenta que más tiene
+    let resto = x;
+    Object.keys(a.porCuenta).sort((p, q) => a.porCuenta[q] - a.porCuenta[p]).forEach(id => {
+      const v = Math.min(resto, a.porCuenta[id]); a.porCuenta[id] = r2(a.porCuenta[id] - v); resto = r2(resto - v);
+      if (a.porCuenta[id] <= 0) delete a.porCuenta[id];
+    });
+  }
+}
+function volverAHucha(x, cuenta) {
+  if (!(x > 0)) return;
+  cuenta = cuentaApp(cuenta);
+  let a = D.ahorro;
+  if (a && a.modo === 'gastar') { D.repartoAhorro = tramosAhorro(D); D.gastarHasta = a.hasta; a = null; }   // lo «para gastar» antiguo se queda como reparto
+  if (!a) { D.ahorro = { importe: r2(x), modo: 'hucha', hasta: '', cuenta, porCuenta: { [cuenta]: r2(x) } }; return; }
+  a.importe = r2(a.importe + x);
+  if (a.porCuenta) a.porCuenta[cuenta] = r2((a.porCuenta[cuenta] || 0) + x);
+}
+
+// Crear o cambiar un objetivo. ctx = { P, huchaDisp, base (lo que llevas antes de este periodo), guardar(datos) } — sirve para la app y para el cuestionario.
+function ctxApp(o) {
+  const c = calcular(D), act = inicioPeriodo(hoyIso(), D.periodo);
+  return { P: D.periodo, huchaDisp: o ? 0 : Math.max(0, r2(c.hucha || 0)), base: o ? accAntes(o, act) : 0, lleva: o ? infoObjetivo(o, c).lleva : 0,
+    guardar: datos => guardarObjetivoApp(o, datos), volver: o ? () => hojaVerObjetivo(o) : null };
+}
+function guardarObjetivoApp(o, datos) {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P);
+  D.objetivos = D.objetivos || [];
+  if (!o) {
+    o = Object.assign({ id: nuevoId(), creado: h }, datos);
+    quitarDeHucha(o.inicial);
+    o.planes = [planObjetivo(o, act, o.inicial || 0, P)];
+    D.objetivos.push(o);
+    guardarDatos(); cerrarHoja(); aviso('Objetivo creado 🎯'); pintarApp(); return;
+  }
+  const base = accAntes(o, act);
+  Object.assign(o, { nombre: datos.nombre, emoji: datos.emoji, meta: datos.meta, modo: datos.modo, hasta: datos.hasta, cuota: datos.cuota });
+  o.planes = (o.planes || []).filter(x => x.desde < act).concat([planObjetivo(o, act, base, P)]);
+  guardarDatos(); aviso('Cambiado desde ' + (P === 'mes' ? 'este mes' : 'esta semana')); pintarApp(); hojaVerObjetivo(o);
+}
+function hojaObjetivo(o, ctx) {
+  const P = ctx.P, mes = P === 'mes', h = hoyIso(), act = inicioPeriodo(h, P), rapidas = fechasRapidas();
+  const esNuevo = !o || ctx.borrador;   // en el cuestionario se puede cambiar todo (aún no ha empezado)
+  const F = o ? { emoji: o.emoji, nombre: o.nombre, meta: o.meta ? fmtImporte(o.meta) : '', modo: o.modo, hasta: o.hasta || '', cuota: o.cuota ? fmtImporte(o.cuota) : '', inicial: ctx.borrador && o.inicial ? fmtImporte(o.inicial) : '' }
+    : { emoji: '', nombre: '', meta: '', modo: 'fecha', hasta: '', cuota: '', inicial: '' };
+  F.otra = !!F.hasta && !rapidas.some(([, f]) => f === F.hasta);
+  const n0 = t => { const n = num(t); return n > 0 ? r2(n) : 0; };
+  function nota() {
+    const meta = n0(F.meta), ini = esNuevo ? n0(F.inicial) : ctx.base, falta = r2(meta - ini);
+    if (F.modo === 'fecha') {
+      if (!meta) return '¿Cuánto necesitas?';
+      if (!(F.hasta > h)) return 'Elige para cuándo lo quieres.';
+      if (falta <= 0) return '¡Ya lo tienes! 🎉';
+      const n = Math.max(1, contarPeriodos(act, inicioPeriodo(F.hasta, P), P));
+      return `Apartarás unos <b>${eur(parteDe(falta, n, 0))}</b> ${unidad(P)} hasta el ${fechaLarga(F.hasta)}${!esNuevo ? ' (desde ' + (mes ? 'este mes' : 'esta semana') + ')' : ''}.`;
+    }
+    const cuota = n0(F.cuota);
+    if (!cuota) return `¿Cuánto quieres apartar ${mes ? 'cada mes' : 'cada semana'}?`;
+    if (!meta) return `Apartarás <b>${eur(cuota)}</b> ${unidad(P)}, sin límite.`;
+    if (falta <= 0) return '¡Ya lo tienes! 🎉';
+    const n = Math.ceil(falta / cuota - 1e-9);
+    let p = act; for (let k = 1; k < n; k++) p = siguientePeriodo(p, P);
+    return `Lo tendrás en ${n === 1 ? (mes ? '1 mes' : '1 semana') : n + (mes ? ' meses' : ' semanas')}, hacia el ${fechaLarga(finPeriodo(p, P))}.`;
+  }
+  abrirHoja(() => ({
+    html: `<h2>${!esNuevo ? 'Cambiar objetivo' : o ? '🎯 Tu objetivo' : '🎯 Nuevo objetivo'}</h2>
+      ${!esNuevo ? `<p class="ayuda">Llevas ${eur(ctx.lleva)}. Lo que cambies cuenta desde ${mes ? 'este mes' : 'esta semana'}.</p>` : ''}
+      <div class="etq">¿Para qué ahorras?</div>
+      <div class="chips" id="oRap">${OBJ_RAPIDOS.map(([e, t]) => `<button class="chip ${F.emoji === e && (t === 'Otro' || F.nombre === t) ? 'on' : ''}" data-e="${e}" data-t="${t}">${e} ${t}</button>`).join('')}</div>
+      <div class="tarjeta" style="margin-top:12px">
+        <input id="oNom" class="texto campo" type="text" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="Nombre (ej: Viaje a Italia)" value="${esc(F.nombre)}" style="margin:0 0 4px">
+        <div class="etq" style="text-align:center">¿Cuánto necesitas?${F.modo === 'semanal' ? ' <small>(si no lo sabes, déjalo vacío)</small>' : ''}</div>
+        <input id="oMeta" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.meta)}">
+      </div>
+      <div class="etq">¿Cómo quieres ahorrar?</div>
+      ${seg('oModo', [['fecha', '📅 Para una fecha'], ['semanal', mes ? '🔁 Cada mes' : '🔁 Cada semana']], F.modo)}
+      <div class="tarjeta" style="margin-top:10px">
+        ${F.modo === 'fecha' ? `<div class="etq" style="margin-top:0">¿Para cuándo lo quieres?</div>
+          <div class="chips" id="oFechas">${rapidas.map(([t, f]) => `<button class="chip ${!F.otra && F.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
+            <button class="chip ${F.otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
+          ${F.otra ? `<input id="oHasta" class="texto campo" type="date" min="${masDias(h, 1)}" value="${F.hasta}" style="margin-top:10px">` : ''}`
+        : `<div class="etq" style="margin-top:0;text-align:center">¿Cuánto apartas ${mes ? 'cada mes' : 'cada semana'}?</div>
+          <input id="oCuota" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.cuota)}">`}
+        <p class="nota" id="oNota" style="margin:12px 2px 0">${nota()}</p>
+      </div>
+      ${esNuevo && ctx.huchaDisp > 0 ? `<div class="etq">🐷 ¿Pones algo de tu hucha?</div>
+        <div class="tarjeta"><div class="saldo-fila" style="border:0;padding:0"><span>De tu hucha<small>Tienes ${eur(ctx.huchaDisp)}. Lo que pongas pasa al objetivo y así apartas menos.</small></span>
+          <input id="oIni" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.inicial)}"></div></div>` : ''}
+      <div class="botones-hoja"><button class="boton" id="hGuardar">${!esNuevo ? 'Guardar cambios' : o ? 'Guardar' : 'Crear objetivo'}</button><button class="boton sec" id="oAtras">${ctx.volver ? '‹ Volver' : 'Cancelar'}</button></div>`,
+    montar() {
+      const refrescar = () => { if ($('oNota')) $('oNota').innerHTML = nota(); };
+      $('oRap').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+        F.emoji = b.dataset.e; if (b.dataset.t !== 'Otro') F.nombre = b.dataset.t; else if (OBJ_RAPIDOS.some(([, t]) => t === F.nombre)) F.nombre = '';
+        pintarHoja(); if (b.dataset.t === 'Otro') $('oNom').focus();
+      });
+      $('oNom').oninput = e => { F.nombre = e.target.value; };
+      $('oMeta').oninput = e => { F.meta = e.target.value; refrescar(); };
+      if ($('oCuota')) $('oCuota').oninput = e => { F.cuota = e.target.value; refrescar(); };
+      if ($('oIni')) $('oIni').oninput = e => { F.inicial = e.target.value; refrescar(); };
+      segmento('oModo', v => { if (v !== F.modo) { F.modo = v; pintarHoja(); } });
+      if ($('oFechas')) $('oFechas').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+        if (b.dataset.f === 'otra') { F.otra = true; pintarHoja(); if ($('oHasta')) $('oHasta').focus(); return; }
+        F.otra = false; F.hasta = b.dataset.f; pintarHoja();
+      });
+      if ($('oHasta')) $('oHasta').onchange = e => { F.hasta = e.target.value; refrescar(); };
+      $('oAtras').onclick = ctx.volver || cerrarHoja;
+      $('hGuardar').onclick = () => {
+        const nombre = F.nombre.trim(), meta = n0(F.meta), cuota = n0(F.cuota), inicial = esNuevo ? n0(F.inicial) : 0;
+        if (!nombre) { aviso('Ponle un nombre'); return $('oNom').focus(); }
+        if (String(F.meta).trim() && isNaN(num(F.meta))) return aviso('Revisa la cantidad');
+        if (F.modo === 'fecha') {
+          if (!meta) { aviso('Escribe cuánto necesitas'); return $('oMeta').focus(); }
+          if (!(F.hasta > h)) return aviso('Elige para cuándo lo quieres');
+        } else if (!cuota) { aviso('Escribe cuánto apartas ' + (mes ? 'cada mes' : 'cada semana')); return $('oCuota') && $('oCuota').focus(); }
+        if (inicial > ctx.huchaDisp + 0.004) return aviso('En la hucha solo tienes ' + eur(ctx.huchaDisp));
+        if (meta && inicial > meta) return aviso('Pones más de lo que necesitas');
+        const emoji = F.emoji || (OBJ_RAPIDOS.find(([, t]) => t === nombre) || ['🎯'])[0];
+        ctx.guardar({ nombre, emoji, meta: meta || null, modo: F.modo, hasta: F.modo === 'fecha' ? F.hasta : '', cuota: F.modo === 'semanal' ? cuota : null, inicial });
+      };
+      if (!o && !F.nombre) setTimeout(() => {}, 0);
+    }
+  }));
+}
+// Ver un objetivo: cuánto llevas, cambiarlo, usar el dinero o borrarlo
+function hojaVerObjetivo(o) {
+  const P = D.periodo, mes = P === 'mes', h = hoyIso();
+  const c = calcular(D), info = infoObjetivo(o, c);
+  const E = { paso: 'ver', gastado: fmtImporte(info.lleva), desc: o.nombre, cuenta: cuentaApp(D.ultimaCuenta), destino: 'hucha' };
+  const restoDe = () => r2(info.lleva - (E.paso === 'usar' ? Math.min(info.lleva, Math.max(0, num(E.gastado) || 0)) : 0));
+  const opcionesResto = () => `<div class="sobra-op" id="oDest">
+      <button class="${E.destino === 'hucha' ? 'on' : ''}" data-v="hucha"><i></i><span><b>🐷 A la hucha</b><small>Lo sigues guardando</small></span></button>
+      <button class="${E.destino === 'gastar' ? 'on' : ''}" data-v="gastar"><i></i><span><b>💸 Para gastar ${mes ? 'este mes' : 'esta semana'}</b><small>Se suma a lo que te queda</small></span></button></div>`;
+  abrirHoja(() => {
+    if (E.paso === 'usar') {
+      const resto = restoDe();
+      return {
+        html: `<h2>🎉 Usar el dinero de «${esc(o.nombre)}»</h2>
+          <p class="ayuda">Llevas ${eur(info.lleva)}. Lo que gastes sale del objetivo, no de lo que te queda ${mes ? 'este mes' : 'esta semana'}.</p>
+          <div class="tarjeta"><div class="etq" style="margin-top:0;text-align:center">¿Cuánto has gastado?</div>
+            <input id="uImp" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.gastado)}">
+            <input id="uDesc" class="texto campo" type="text" maxlength="40" enterkeyhint="done" autocomplete="off" placeholder="¿En qué?" value="${esc(E.desc)}">
+            ${D.cuentas.length > 1 ? `<div class="etq">¿Con qué has pagado?</div><div class="chips" id="uCtas">${D.cuentas.map(k => `<button class="chip ${E.cuenta === k.id ? 'on' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>` : ''}
+          </div>
+          <div id="uResto">${resto > 0 ? `<div class="etq">¿Qué hacemos con los ${eur(resto)} que sobran?</div>${opcionesResto()}` : ''}</div>
+          <div class="botones-hoja"><button class="boton" id="hGuardar">Listo</button><button class="boton sec" id="uVolver">‹ Volver</button></div>`,
+        montar() {
+          const pintaResto = () => { const r = restoDe(); $('uResto').innerHTML = r > 0 ? `<div class="etq">¿Qué hacemos con los ${eur(r)} que sobran?</div>${opcionesResto()}` : ''; montaDest(); };
+          const montaDest = () => document.querySelectorAll('#oDest button').forEach(b => b.onclick = () => { E.destino = b.dataset.v; pintaResto(); });
+          montaDest();
+          $('uImp').oninput = e => { E.gastado = e.target.value; pintaResto(); };
+          $('uDesc').oninput = e => { E.desc = e.target.value; };
+          document.querySelectorAll('#uCtas .chip').forEach(b => b.onclick = () => { E.cuenta = b.dataset.v; pintarHoja(); });
+          $('uVolver').onclick = () => { E.paso = 'ver'; pintarHoja(); };
+          $('hGuardar').onclick = () => {
+            const g = num(E.gastado);
+            if (!(g > 0)) return aviso('Escribe cuánto has gastado');
+            if (g > info.lleva + 0.004) return aviso('En el objetivo solo hay ' + eur(info.lleva));
+            cerrarObjetivo(o, r2(g), E.desc.trim() || o.nombre, E.cuenta, E.destino, false);
+          };
+        }
+      };
+    }
+    if (E.paso === 'borrar') return {
+      html: `<h2>¿Borrar «${esc(o.nombre)}»?</h2>
+        ${info.lleva > 0 ? `<p class="ayuda">Llevas ${eur(info.lleva)} apartados. ¿Qué hacemos con ellos?</p>${opcionesResto()}` : '<p class="ayuda">Aún no has apartado nada.</p>'}
+        <div class="botones-hoja"><button class="boton rojo-txt" id="hGuardar" style="background:var(--card)">Borrar objetivo</button><button class="boton sec" id="uVolver">‹ Volver</button></div>`,
+      montar() {
+        document.querySelectorAll('#oDest button').forEach(b => b.onclick = () => { E.destino = b.dataset.v; pintarHoja(); });
+        $('uVolver').onclick = () => { E.paso = 'ver'; pintarHoja(); };
+        $('hGuardar').onclick = () => cerrarObjetivo(o, 0, '', E.cuenta, E.destino, true);
+      }
+    };
+    return {
+      html: `<h2 style="text-align:center">${o.emoji || '🎯'} ${esc(o.nombre)}</h2>
+        <div class="deu-grande ${info.hecho ? 'pos' : ''}">${eur(info.lleva)}</div>
+        <p class="deu-sub">${o.meta > 0 ? 'de ' + eur(o.meta) + ' · ' : ''}${esc(info.sub)}</p>
+        ${o.meta > 0 ? `<div class="barrita obj-barra"><i class="${info.hecho ? 'hecho' : ''}" style="width:${info.pct.toFixed(1)}%"></i></div>` : ''}
+        ${info.ahora ? `<p class="nota" style="text-align:center;margin-top:10px">${mes ? 'Este mes' : 'Esta semana'} apartas ${eur(info.ahora)}: ya está restado de lo que te queda.</p>` : ''}
+        <div class="botones-hoja">
+          ${info.lleva > 0 ? `<button class="boton ${info.hecho ? '' : 'suave'}" id="oUsar">🎉 Usar el dinero</button>` : ''}
+          <button class="boton ${info.lleva > 0 && info.hecho ? 'suave' : info.lleva > 0 ? 'suave' : 'suave'}" id="oCambiar">✏️ Cambiar</button>
+          <button class="boton rojo-txt" id="oBorrar">Borrar objetivo</button>
+          <button class="boton sec" id="hCancelar">Cerrar</button>
+        </div>`,
+      montar() {
+        if ($('oUsar')) $('oUsar').onclick = () => { E.paso = 'usar'; pintarHoja(); };
+        $('oCambiar').onclick = () => hojaObjetivo(o, ctxApp(o));
+        $('oBorrar').onclick = () => { E.paso = 'borrar'; pintarHoja(); };
+      }
+    };
+  });
+}
+// Cerrar un objetivo (al usar el dinero o al borrarlo). Lo que sobra va a la hucha o pasa a ser para gastar este periodo.
+// Deja de apartar desde el periodo que viene; lo de antes no cambia (por eso no se borra de verdad: queda como cerrado).
+function cerrarObjetivo(o, gastado, desc, cuenta, destino, borrar) {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), ahora = Date.now();
+  const lleva = infoObjetivo(o).lleva, resto = r2(lleva - gastado);
+  cuenta = cuentaApp(cuenta);
+  if (gastado > 0) D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: gastado, desc, cat: 'Objetivos', cuenta, fecha: h, ts: ahora, objetivo: o.id });
+  if (resto > 0) {
+    if (destino === 'hucha') volverAHucha(resto, cuenta);
+    else D.movimientos.push({ id: nuevoId(), tipo: 'ingreso', importe: resto, desc: 'De tu objetivo «' + o.nombre + '»', cuenta, fecha: h, ts: ahora + 1, sinCuenta: true, origen: 'objetivo' });
+  }
+  Object.assign(o, { cerrado: siguientePeriodo(act, P), cerradoEn: h, final: { gastado, resto: resto > 0 ? resto : 0, destino } });
+  if (borrar) o.borrado = true;
+  D.ultimaCuenta = cuenta;
+  guardarDatos(); cerrarHoja();
+  aviso(borrar ? 'Objetivo borrado' : '¡A disfrutarlo! 🎉'); pintarApp();
+}
+
 // ---------- ⚙️ Ajustes ----------
 const activo = it => !it.hasta || it.hasta >= hoyIso();
 const descFijo = it => eur(it.importe) + (it.frec === 'mes' ? ' al mes · día ' + it.dia : ' a la semana · ' + DIAS_NOMBRE[it.dia])
@@ -2880,6 +3216,7 @@ const APARTADOS = {
   ingresos:   ['💶', 'Ingresos fijos'],
   fijos:      ['🧾', 'Gastos fijos'],
   ahorros:    ['🐷', 'Ahorros'],
+  objetivos:  ['🎯', 'Objetivos'],
   cuentas:    ['🏦', 'Cuentas'],
   categorias: ['🏷️', 'Categorías'],
   applepay:   ['📲', 'Apple Pay']
@@ -2906,6 +3243,7 @@ function vistaAjustes() {
       ingresos: resumenLista(ingresos, 'ingreso', 'ingresos'),
       fijos: resumenLista(fijos, 'gasto', 'gastos'),
       ahorros: [conHucha ? 'Hucha ' + eur(c.hucha) : '', ig.queda > 0 ? 'Para gastar ' + eur(ig.queda) : ''].filter(Boolean).join(' · ') || 'No tienes',
+      objetivos: objetivosVivos().length ? objetivosVivos().map(o => o.emoji + ' ' + o.nombre).join(' · ') : 'Ninguno',
       cuentas: D.cuentas.map(k => k.nombre).join(', '),
       categorias: D.categorias.length + ' categorías'
     };
@@ -2924,7 +3262,7 @@ function vistaAjustes() {
           ${conDia ? `<button class="aj-dia" id="jDiaMes"><span>🗓️ Tu mes empieza el día <b>${DIA_MES}</b></span><span class="ir">›</span></button>` : ''}
         </div>
         <div class="sec-tit">Tu dinero</div>
-        ${grupo(['ingresos', 'fijos', 'ahorros', 'cuentas', 'categorias'])}
+        ${grupo(['ingresos', 'fijos', 'ahorros', 'objetivos', 'cuentas', 'categorias'])}
         <div class="sec-tit">Tú</div>
         <div class="tarjeta aj-rapido">
           <div class="ajuste-fila"><span>🙂 Tu nombre</span><input id="jNombre" type="text" maxlength="30" value="${esc(D.nombre)}" enterkeyhint="done"></div>
@@ -2981,6 +3319,8 @@ function vistaAjustes() {
         <div class="txt"><b>Tus ahorros</b><span style="white-space:normal">${esc(descAhorro)}</span></div><div class="ir">›</div></div></div>
       ${a && a.porCuenta && Object.keys(a.porCuenta).length > 1 ? nota('Lo tienes en: ' + Object.entries(a.porCuenta).map(([id, x]) => esc(nombreCta(id)) + ' ' + eur(x)).join(' · ')) : ''}
       ${ig.queda > 0 ? nota('Lo de «para gastar» se reparte a partes iguales hasta esa fecha: cada ' + (mes ? 'mes' : 'semana') + ' se suma un trozo a lo que puedes gastar. Por eso lo que queda va bajando.') : ''}`,
+    objetivos: `<div class="tarjeta lista" id="jObjetivos">${objetivosVivos().map(o => filaObjetivo(o, c)).join('')}<button class="anadir" id="jAddObj">＋ Añadir objetivo</button></div>
+      ${nota('Lo que apartas para cada objetivo se resta de lo que puedes gastar, como un gasto fijo. Si lo cambias, cuenta desde ' + (mes ? 'este mes' : 'esta semana') + '.')}`,
     cuentas: `<div class="tarjeta lista" id="jCuentas">${D.cuentas.map(k => `<div class="mov" data-id="${k.id}"><div class="ico">${k.emoji}</div>
         <div class="txt"><b>${esc(k.nombre)}</b>${k.saldo != null ? `<span>Saldo puesto el ${fechaCorta(k.saldoFecha)}</span>` : ''}</div><div class="ir">›</div></div>`).join('')}
         <button class="anadir" id="jAddCta">＋ Añadir cuenta</button></div>
@@ -3026,6 +3366,8 @@ function vistaAjustes() {
       si('jAddIng', el => el.onclick = () => hojaItem('ingreso', null));
       si('jAddFijo', el => el.onclick = () => hojaItem('fijo', null));
       si('jAhorro', el => el.onclick = hojaAhorro);
+      si('jAddObj', el => el.onclick = () => hojaObjetivo(null, ctxApp(null)));
+      montarObjetivos($('jObjetivos') || document.createElement('div'));
       document.querySelectorAll('#jCuentas .mov').forEach(el => el.onclick = () => hojaCuenta(D.cuentas.find(k => k.id === el.dataset.id)));
       si('jAddCta', el => el.onclick = () => hojaCuenta(null));
       document.querySelectorAll('#jCats .chip').forEach(b => b.onclick = () => {
@@ -3111,6 +3453,7 @@ function hojaDiaMes() {
         D.diaMes = dia; fijarDiaMes(D); movIni = null;
         if (rehacer) rehacer();
         if (rehacerIni) rehacerIni();
+        if (D.periodo === 'mes') prepararObjetivos('mes')();
         guardarDatos(); cerrarHoja(); aviso('Tu mes empieza el día ' + dia); pintarApp();
       };
     }
@@ -3133,6 +3476,16 @@ function prepararReparto() {
   };
 }
 
+// Objetivos al cambiar semanas ↔ meses: «para una fecha» se reparte otra vez hasta la misma fecha; «cada semana» pasa a su equivalente al mes (o al revés)
+function prepararObjetivos(nuevoP) {
+  const viejoP = D.periodo;
+  return () => (D.objetivos || []).forEach(o => {
+    if (o.cerrado) return;
+    const desde = inicioPeriodo(o.creado || D.creado, D.periodo);
+    if (o.modo === 'semanal' && nuevoP !== viejoP) o.cuota = r2(nuevoP === 'mes' ? o.cuota * 52 / 12 : o.cuota * 12 / 52);
+    o.planes = [planObjetivo(o, desde, o.inicial || 0, D.periodo)];
+  });
+}
 // Lo mismo con «lo que tenías al empezar» repartido hasta una fecha: lo que quede en total se vuelve a repartir hasta la misma fecha
 function prepararInicial() {
   const P = D.periodo, t = tramosInicial(D);
@@ -3160,8 +3513,8 @@ const fechaLarga = f => fechaCorta(f) + (f.slice(0, 4) !== hoyIso().slice(0, 4) 
 function cambiarPeriodo(v) {
   if (!confirm(v === 'mes' ? '¿Ver tu dinero por meses? Se recalcula todo por meses.' : '¿Ver tu dinero por semanas? Se recalcula todo por semanas (lo mensual se reparte entre las semanas).')) return pintarApp();
   const rehacer = prepararReparto();
-  const rehacerIni = prepararInicial();
-  D.periodo = v; movIni = null; rehacer(); rehacerIni(); guardarDatos();
+  const rehacerIni = prepararInicial(), rehacerObj = prepararObjetivos(v);
+  D.periodo = v; movIni = null; rehacer(); rehacerIni(); rehacerObj(); guardarDatos();
   aviso(v === 'mes' ? 'Ahora lo ves por meses' : 'Ahora lo ves por semanas'); pintarApp();
 }
 
@@ -3259,8 +3612,8 @@ function calculoParaGastar(totalBanco, hucha) {
   const ingFut = futuro(D.ingresos), fijFut = futuro(D.fijos);
   const meDeben = (D.deudas || []).filter(x => x.tipo === 'meDeben' && abierta(x)).reduce((s, x) => s + faltaDe(x), 0);
   const destino = r2(comp - ingFut + fijFut - meDeben);   // positivo: dinero del banco que ya tiene destino
-  const ahorrado = r2(c.ahorrado || 0), queda = r2(c.queda);
-  return { pool: r2(totalBanco - hucha - ahorrado - queda - destino), ahorrado, queda, destino, c, act };
+  const ahorrado = r2(c.ahorrado || 0), queda = r2(c.queda), objetivos = r2(c.objetivosAhorrado || 0);
+  return { pool: r2(totalBanco - hucha - ahorrado - objetivos - queda - destino), ahorrado, objetivos, queda, destino, c, act };
 }
 
 // Ahorros: pones lo que tienes en el banco y lo que quieres guardar en la hucha; lo que se puede gastar sale solo.
@@ -3282,6 +3635,7 @@ function hojaAhorro() {
     const r = calculoParaGastar(totalBanco(), totalHucha());
     let html = fila('En el banco', eur(totalBanco())) + (totalHucha() ? fila('🐷 Hucha', '−' + eur(totalHucha())) : '')
       + (r.ahorrado ? fila('💰 Lo que has ahorrado', '−' + eur(r.ahorrado)) : '')
+      + (r.objetivos ? fila('🎯 Tus objetivos', '−' + eur(r.objetivos)) : '')
       + fila('Lo que te queda ' + esteP, (r.queda < 0 ? '+' : '−') + eur(Math.abs(r.queda)))
       + (r.destino >= 0.005 ? fila('Ya tiene destino <small>(lo de tu sueldo para las próximas semanas, gastos fijos sin cobrar…)</small>', '−' + eur(r.destino))
         : r.destino <= -0.005 ? fila('Te va a llegar <small>(lo que te deben, ingresos de ' + esteP + ' que aún no tienes…)</small>', '+' + eur(-r.destino)) : '')
