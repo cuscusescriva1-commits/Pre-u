@@ -142,6 +142,7 @@ input[type=date].texto{min-height:52px}
 .linea span{color:var(--sub)}
 .linea.total{font-weight:700}
 .linea.total span{color:var(--txt)}
+.linea small{color:var(--sub);font-size:12.5px}
 
 #aviso{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));z-index:30;transform:translateX(-50%) translateY(10px);
   background:rgba(28,28,30,.95);color:#fff;padding:12px 20px;border-radius:24px;font-size:15px;opacity:0;transition:all .25s;pointer-events:none;
@@ -3233,85 +3234,127 @@ function hojaItem(tipo, orig) {
   }));
 }
 
-// Ahorros: hucha y «para gastar» a la vez, cada uno con su cantidad. Lo que cambies cuenta desde este periodo.
-// «Para gastar» incluye lo que tenías al empezar si no cobras cada mes (D.inicialHasta): se cambia en el mismo sitio, sin contarlo dos veces.
+// «Para gastar» a partir de lo que hay en el banco (decidido por Carles el 22/10):
+//   para repartir desde el periodo que viene = banco − hucha − lo ahorrado − lo que te queda este periodo − lo que ya tiene destino
+// «Lo que ya tiene destino»: lo de tu sueldo (u otro ingreso mensual) que ya está repartido entre las próximas semanas de este mes,
+// los gastos fijos ya contados que aún no se han cobrado (siguen en el banco), los ingresos ya contados que aún no han llegado
+// (no están en el banco) y lo que te deben tus amigos (no está en el banco, pero volverá).
+function calculoParaGastar(totalBanco, hucha) {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), semanas = P === 'semana';
+  const conMes = [...D.ingresos, ...D.fijos].some(x => x.frec === 'mes');
+  const repartoIni = tramosInicial(D).length > 0;
+  // Semanas que vienen y van con el mismo mes de cobro que esta (su parte del sueldo ya está en el banco)
+  let comp = 0, ultimaP = act, finMes = finPeriodo(act, P);
+  if (semanas && conMes) {
+    const cy = cicloDeSemana(D, act); finMes = finCiclo(cy);
+    for (let p = siguientePeriodo(act, P); cicloDeSemana(D, p) === cy; p = siguientePeriodo(p, P)) {
+      const r = calcular(D, h, p);
+      comp += r.entra - r.fijos + (repartoIni ? 0 : r.deInicio);   // (lo que tenías al empezar, si va «hasta que cobres»)
+      ultimaP = p;
+    }
+  }
+  const H = finPeriodo(ultimaP, P);   // lo semanal, hasta el final de la última semana de este mes; lo mensual, hasta el final del mes de cobro
+  const val = (it, f) => { const x = D.cambios[clave(it, f)]; return x ? (x.no ? 0 : x.importe) : it.importe; };
+  const futuro = lista => lista.reduce((s, it) => s + fechasDe(it, masDias(h, 1), it.frec === 'mes' ? finMes : H).reduce((a, f) => a + val(it, f), 0), 0);
+  const ingFut = futuro(D.ingresos), fijFut = futuro(D.fijos);
+  const meDeben = (D.deudas || []).filter(x => x.tipo === 'meDeben' && abierta(x)).reduce((s, x) => s + faltaDe(x), 0);
+  const destino = r2(comp - ingFut + fijFut - meDeben);   // positivo: dinero del banco que ya tiene destino
+  const ahorrado = r2(c.ahorrado || 0), queda = r2(c.queda);
+  return { pool: r2(totalBanco - hucha - ahorrado - queda - destino), ahorrado, queda, destino, c, act };
+}
+
+// Ahorros: pones lo que tienes en el banco y lo que quieres guardar en la hucha; lo que se puede gastar sale solo.
+// Este periodo sigue igual; lo demás se reparte desde el que viene hasta la fecha que elijas.
 function hojaAhorro() {
   const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), c = calcular(D), a = D.ahorro, mes = P === 'mes';
-  const varias = D.cuentas.length > 1, ig0 = infoGastar(c), rapidas = fechasRapidas();
-  const huchaAhora = c.hucha !== null ? r2(c.hucha) : 0;
-  const E = { cuenta: cuentaApp(a && a.cuenta), hucha: huchaAhora ? fmtImporte(huchaAhora) : '', gastar: ig0.queda > 0 ? fmtImporte(ig0.queda) : '',
-    hasta: ig0.hasta && ig0.hasta > h ? ig0.hasta : '' };
-  E.otra = E.hasta && !rapidas.some(([, f]) => f === E.hasta);
-  E.porCuenta = a && a.modo === 'hucha' && a.porCuenta && sumaPorCuenta(a.porCuenta) === huchaAhora ? Object.assign({}, a.porCuenta)
-    : (huchaAhora > 0 ? { [E.cuenta]: huchaAhora } : {});
-  const nG = () => { const n = num(E.gastar); return n > 0 ? r2(n) : 0; };
-  const notaGastar = () => {
-    const g = nG();
-    if (!g) return 'Si no tienes dinero para repartir, déjalo en 0.';
-    if (!(E.hasta > h)) return 'Elige hasta cuándo te tiene que durar.';
-    const n = Math.max(1, contarPeriodos(act, inicioPeriodo(E.hasta, P), P));
-    return `Desde ${mes ? 'este mes' : 'esta semana'}: unos <b>${eur(parteDe(g, n, 0))}</b> ${mes ? 'al mes' : 'a la semana'} hasta el ${fechaLarga(E.hasta)}. Lo de antes no cambia.`;
-  };
+  const rapidas = fechasRapidas(), ig0 = infoGastar(c), sig = siguientePeriodo(act, P);
+  const esteP = mes ? 'este mes' : 'esta semana', queVieneP = mes ? 'el mes que viene' : 'la semana que viene';
+  const E = { banco: {}, hucha: {}, hasta: ig0.hasta && ig0.hasta > h ? ig0.hasta : '', otra: false };
+  D.cuentas.forEach(k => { const s = saldoCuenta(k); if (s !== null) E.banco[k.id] = txtSaldo(s); const hu = huchaEnCuenta(k.id, c); if (hu) E.hucha[k.id] = txtSaldo(hu); });
+  E.otra = !!E.hasta && !rapidas.some(([, f]) => f === E.hasta);
+  const n0 = t => { const n = num(t); return isFinite(n) ? n : 0; };
+  const totalBanco = () => r2(D.cuentas.reduce((s, k) => s + n0(E.banco[k.id]), 0));
+  const totalHucha = () => r2(D.cuentas.reduce((s, k) => s + Math.max(0, n0(E.hucha[k.id])), 0));
+  const faltaBanco = () => D.cuentas.find(k => !String(E.banco[k.id] ?? '').trim() || isNaN(num(E.banco[k.id])));
+  const fila = (t, v, cls) => `<div class="linea"><span>${t}</span><b class="${cls || ''}">${v}</b></div>`;
+  function cuentas() {
+    if (faltaBanco()) return `<p class="nota" style="margin:0">Pon lo que tienes en ${D.cuentas.length > 1 ? 'cada cuenta' : 'tu cuenta'} y te digo cuánto puedes gastar.</p>`;
+    const r = calculoParaGastar(totalBanco(), totalHucha());
+    let html = fila('En el banco', eur(totalBanco())) + (totalHucha() ? fila('🐷 Hucha', '−' + eur(totalHucha())) : '')
+      + (r.ahorrado ? fila('💰 Lo que has ahorrado', '−' + eur(r.ahorrado)) : '')
+      + fila('Lo que te queda ' + esteP, (r.queda < 0 ? '+' : '−') + eur(Math.abs(r.queda)))
+      + (r.destino >= 0.005 ? fila('Ya tiene destino <small>(lo de tu sueldo para las próximas semanas, gastos fijos sin cobrar…)</small>', '−' + eur(r.destino))
+        : r.destino <= -0.005 ? fila('Te va a llegar <small>(lo que te deben, ingresos de ' + esteP + ' que aún no tienes…)</small>', '+' + eur(-r.destino)) : '')
+      + `<div class="linea total"><span>💸 Para gastar desde ${queVieneP}</span><b class="${r.pool < 0 ? 'neg' : 'pos'}">${eur(r.pool)}</b></div>`;
+    if (r.pool < 0) html += `<p class="nota" style="margin:8px 0 0">Tienes ${eur(-r.pool)} menos de lo que Pre$u cree. Revisa lo que has puesto; si está bien, al guardar se restará de lo que te queda ${esteP}.</p>`;
+    else if (r.pool > 0 && E.hasta > h) {
+      const n = Math.max(1, contarPeriodos(sig, inicioPeriodo(E.hasta < sig ? sig : E.hasta, P), P));
+      html += `<p class="nota" style="margin:8px 0 0">Unos <b>${eur(parteDe(r.pool, n, 0))}</b> ${mes ? 'al mes' : 'a la semana'} hasta el ${fechaLarga(E.hasta)}, además de lo que te entre.</p>`;
+    } else if (r.pool > 0) html += `<p class="nota" style="margin:8px 0 0">Elige hasta cuándo te tiene que durar.</p>`;
+    return html;
+  }
+  const filasCta = (cls, vals) => D.cuentas.map(k => `<div class="saldo-fila"><span>${k.emoji} ${esc(k.nombre)}</span>
+      <input class="${cls}" data-id="${k.id}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(vals[k.id] ?? '')}"></div>`).join('');
   abrirHoja(() => ({
     html: `<h2>Tus ahorros</h2>
-      <p class="ayuda">Puedes tener las dos cosas a la vez. Lo que cambies cuenta desde ${mes ? 'este mes' : 'esta semana'}.</p>
+      <p class="ayuda">Pon lo que tienes en el banco y lo que quieres guardar. Lo que puedes gastar sale solo. ${mayus(esteP)} sigue igual.</p>
+      <div class="etq">💳 ¿Cuánto tienes ahora en el banco?</div>
+      <div class="tarjeta">${filasCta('bk-imp', E.banco)}<p class="nota" style="margin:8px 2px 0">Lo que dice la app de tu banco, con la hucha incluida.</p></div>
       <div class="etq">🐷 Hucha · no se toca</div>
-      <div class="tarjeta">
-        ${varias ? filasAhorroCuentas(D.cuentas, E.porCuenta)
-          : `<input id="aHucha" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.hucha)}">`}
-        <div class="nota" style="text-align:center">Para imprevistos: no cuenta para gastar, pero al apuntar un gasto podrás pagar con la hucha.</div>
-      </div>
-      <div class="etq">💸 Para gastar · se reparte ${mes ? 'cada mes' : 'cada semana'}</div>
-      <div class="tarjeta">
-        <div class="sub" style="text-align:center;color:var(--sub);font-size:14px">¿Cuánto te queda por repartir?</div>
-        <input id="aGastar" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(E.gastar)}">
-        <div class="etq" style="margin-top:6px">¿Hasta cuándo te tiene que durar?</div>
+      <div class="tarjeta">${filasCta('hu-imp', E.hucha)}<p class="nota" style="margin:8px 2px 0">Lo que quieres guardar y no gastar. Si hay un imprevisto, al apuntar un gasto podrás pagar con la hucha.</p></div>
+      <div class="etq">💸 Para gastar</div>
+      <div class="tarjeta"><div id="ahCalc">${cuentas()}</div>
+        <div class="etq" style="margin-top:14px">¿Hasta cuándo te tiene que durar?</div>
         <div class="chips" id="aRap">${rapidas.map(([t, f]) => `<button class="chip ${!E.otra && E.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
           <button class="chip ${E.otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
         ${E.otra ? `<input id="aHasta" class="texto campo" type="date" min="${masDias(h, 1)}" value="${E.hasta}" style="margin-top:10px">` : ''}
-        <div class="nota" id="aNotaG" style="margin-top:12px">${notaGastar()}</div>
       </div>
+      ${c.pendientes.length ? `<p class="nota" style="margin:10px 6px 0">⚠️ Antes contesta en Inicio «¿Te ha llegado…?»: si ya te llegó y está en el banco, se contaría dos veces.</p>` : ''}
       <div class="botones-hoja"><button class="boton" id="hGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
     montar() {
-      if ($('aHucha')) $('aHucha').oninput = e => { E.hucha = e.target.value; };
-      if (varias) montarAhorroCuentas(E.porCuenta, () => { E.cuenta = cuentaMayor(E.porCuenta, E.cuenta); });
-      $('aGastar').oninput = e => { E.gastar = e.target.value; $('aNotaG').innerHTML = notaGastar(); };
+      const recalc = () => { $('ahCalc').innerHTML = cuentas(); };
+      document.querySelectorAll('.bk-imp').forEach(i => { i.oninput = () => { E.banco[i.dataset.id] = i.value; recalc(); }; i.onfocus = () => i.select(); });
+      document.querySelectorAll('.hu-imp').forEach(i => { i.oninput = () => { E.hucha[i.dataset.id] = i.value; recalc(); }; i.onfocus = () => i.select(); });
       $('aRap').querySelectorAll('.chip').forEach(b => b.onclick = () => {
         if (b.dataset.f === 'otra') { E.otra = true; pintarHoja(); if ($('aHasta')) $('aHasta').focus(); return; }
         E.otra = false; E.hasta = b.dataset.f; pintarHoja();
       });
-      if ($('aHasta')) $('aHasta').onchange = e => { E.hasta = e.target.value; $('aNotaG').innerHTML = notaGastar(); };
+      if ($('aHasta')) $('aHasta').onchange = e => { E.hasta = e.target.value; recalc(); };
       $('hGuardar').onclick = () => {
-        const hucha = varias ? sumaPorCuenta(E.porCuenta) : (num(E.hucha) > 0 ? r2(num(E.hucha)) : 0);
-        if (!varias && String(E.hucha).trim() && isNaN(num(E.hucha))) return aviso('Revisa la cantidad de la hucha');
-        if (String(E.gastar).trim() && isNaN(num(E.gastar))) return aviso('Revisa la cantidad para gastar');
-        const g = nG();
-        if (g > 0 && !(E.hasta > h)) return aviso('Elige hasta cuándo te tiene que durar');
-        // 1) Para gastar: solo si ha cambiado la cantidad o la fecha. Lo de periodos anteriores se queda igual.
-        const cambiaGastar = g !== r2(ig0.queda) || (g > 0 && E.hasta !== ig0.hasta);
-        const trAho = tramosAhorro(D);   // antes de tocar D.ahorro (los ahorros «para gastar» antiguos salen de ahí)
-        if (cambiaGastar) {
-          const ant = periodoAnterior(act, P);
-          const cortar = tr => tr.filter(t => t.desde <= ant).map(t => Object.assign({}, t, { ultimo: t.ultimo > ant ? ant : t.ultimo }));
-          const ultimo = g > 0 ? inicioPeriodo(E.hasta, P) : '';
-          const nuevo = g > 0 ? [{ desde: act, ultimo, n: Math.max(1, contarPeriodos(act, ultimo, P)), total: g }] : [];
-          if (D.inicialHasta) {   // va con «lo que tenías al empezar» (así no hay dos repartos)
-            D.repartoInicial = cortar(tramosInicial(D)).concat(nuevo);
-            if (g > 0) D.inicialHasta = E.hasta;
-            D.repartoAhorro = cortar(trAho); delete D.gastarHasta;
-          } else {
-            D.repartoAhorro = cortar(trAho).concat(nuevo);
-            if (g > 0) D.gastarHasta = E.hasta; else delete D.gastarHasta;
-          }
-        } else if (a && a.modo === 'gastar') {   // no cambia, pero el ahorro pasa a guardarse como reparto (para poder tener hucha a la vez)
-          D.repartoAhorro = trAho; D.gastarHasta = a.hasta;
+        const f = faltaBanco();
+        if (f) return aviso('Pon lo que tienes en ' + f.nombre + ' (aunque sea 0)');
+        const malH = D.cuentas.find(k => String(E.hucha[k.id] ?? '').trim() && isNaN(num(E.hucha[k.id])));
+        if (malH) return aviso('Revisa la hucha de ' + malH.nombre);
+        const pasa = D.cuentas.find(k => n0(E.hucha[k.id]) > n0(E.banco[k.id]) + 0.004);
+        if (pasa) return aviso('En ' + pasa.nombre + ' la hucha es más de lo que tienes');
+        const r = calculoParaGastar(totalBanco(), totalHucha()), pool = r.pool;
+        if (pool > 0 && !(E.hasta > h)) return aviso('Elige hasta cuándo te tiene que durar');
+        const ahora = Date.now();
+        // 1) Para gastar: este periodo se queda igual; lo de antes también. Lo nuevo empieza el periodo que viene.
+        const cortar = tr => tr.filter(t => t.desde <= act).map(t => Object.assign({}, t, { ultimo: t.ultimo > act ? act : t.ultimo }));
+        const trAho = tramosAhorro(D), trIni = tramosInicial(D);
+        const ultimo = pool > 0 ? inicioPeriodo(E.hasta < sig ? sig : E.hasta, P) : '';
+        const nuevo = pool > 0 ? [{ desde: sig, ultimo, n: Math.max(1, contarPeriodos(sig, ultimo, P)), total: pool }] : [];
+        if (D.inicialHasta) {
+          D.repartoInicial = cortar(trIni).concat(nuevo);
+          if (pool > 0) D.inicialHasta = E.hasta;
+          D.repartoAhorro = cortar(trAho); delete D.gastarHasta;
+        } else {
+          D.repartoAhorro = cortar(trAho).concat(nuevo);
+          if (pool > 0) D.gastarHasta = E.hasta; else delete D.gastarHasta;
         }
-        // 2) Hucha
-        if (hucha > 0) {
-          const usado = D.movimientos.filter(m => m.hucha).reduce((s, m) => s + m.importe, 0);
-          D.ahorro = { importe: r2(hucha + usado), modo: 'hucha', hasta: '', cuenta: E.cuenta };   // así te quedan justo esos €
-          if (varias) D.ahorro.porCuenta = Object.assign({}, E.porCuenta);
+        // Si hay menos dinero del que Pre$u creía: se resta de lo que te queda este periodo
+        if (pool < 0) D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: r2(-pool), desc: 'Descuadre', cat: 'Descuadre', cuenta: cuentaApp(D.ultimaCuenta), fecha: h, ts: ahora, origen: 'cuadre' });
+        // 2) Hucha (por cuenta)
+        const hu = totalHucha();
+        if (hu > 0) {
+          const usado = D.movimientos.filter(m => m.hucha).reduce((s, m) => s + m.importe, 0), porCuenta = {};
+          D.cuentas.forEach(k => { const v = n0(E.hucha[k.id]); if (v > 0) porCuenta[k.id] = r2(v); });
+          D.ahorro = { importe: r2(hu + usado), modo: 'hucha', hasta: '', cuenta: cuentaMayor(porCuenta, cuentaApp(a && a.cuenta)), porCuenta };
         } else D.ahorro = null;
+        // 3) Lo que hay en el banco pasa a ser «Deberías tener»
+        D.cuentas.forEach((k, i) => Object.assign(k, { saldo: r2(n0(E.banco[k.id])), saldoFecha: h, saldoEn: ahora + 50 + i }));
+        D.cuadrado = h;
         guardarDatos(); cerrarHoja(); aviso('Guardado ✓'); pintarApp();
       };
     }
