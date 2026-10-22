@@ -122,6 +122,10 @@ input[type=date].texto{min-height:52px}
 .plan-luego span{color:var(--sub);font-size:14.5px}
 .plan-luego b{font-size:18px;font-weight:700}
 .enlace-copia{display:block;margin:14px auto 0;border:0;background:none;color:var(--acento);font-weight:600;font-size:15px;padding:8px}
+.cuadra-aviso{display:flex;flex-direction:column;gap:12px;background:var(--acento-suave);box-shadow:none}
+.cuadra-aviso .ca-txt b{display:block;font-size:16px;font-weight:700}
+.cuadra-aviso .ca-txt span{display:block;font-size:14px;color:var(--sub);margin-top:3px}
+.cuadra-aviso .ca-bot{display:flex;gap:8px}
 .copia-aviso{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px}
 .copia-aviso .deu-ico{font-size:20px;flex:none}
 .copia-aviso .txt{flex:1;min-width:0;font-size:15px;font-weight:600}
@@ -372,6 +376,13 @@ input[type=date].texto{min-height:52px}
 .cuadre-b .mini-b.si{background:var(--acento)}
 .cuadre.ok span{color:var(--verde);font-weight:600}
 .cuadre .enlace{border:0;background:none;color:var(--sub);font-size:14px;padding:4px 0}
+.sobra-op{display:flex;flex-direction:column;gap:6px;padding:0 0 10px}
+.sobra-op button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;border-radius:12px;background:var(--campo);padding:10px 12px;color:var(--txt)}
+.sobra-op button i{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--sep)}
+.sobra-op button.on{box-shadow:0 0 0 2px var(--acento)}
+.sobra-op button.on i{border:6px solid var(--acento)}
+.sobra-op button b{display:block;font-size:15px;font-weight:600}
+.sobra-op button small{display:block;font-size:12.5px;color:var(--sub);margin-top:1px}
 .cuadre-efecto{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:15px}
 .cuadre-efecto s{color:var(--sub)}
 .cuadre-efecto b{font-size:17px}
@@ -1370,6 +1381,9 @@ function vistaInicio() {
       <div class="desglose">${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
         ${hayMensual && c.ciclo ? `<div class="nota">${notaCiclo(c.ciclo)}</div>` : ''}</div>
     </div>
+    ${(tc => tc ? `<div class="tarjeta cuadra-aviso"><div class="ca-txt"><b>⚖️ ¿Cuadramos ${mes ? 'el mes pasado' : 'la semana pasada'}?</b>
+      <span>${tc.n ? 'Solo apuntaste ' + tc.n + (tc.n === 1 ? ' gasto' : ' gastos') : 'No apuntaste ningún gasto'} (${textoRango(tc.prev, tc.fin).replace(/^Del/, 'del')}). Mira tu banco y lo dejamos bien.</span></div>
+      <div class="ca-bot"><button class="mini-b si" id="iCuadrar">Cuadrar</button><button class="mini-b" id="iCuadrarNo">Ahora no</button></div></div>` : '')(tocaCuadrar())}
     ${tocaCopia() ? `<div class="tarjeta copia-aviso"><span class="deu-ico">💾</span><span class="txt">Haz una copia de seguridad<small>${textoUltimaCopia()}</small></span>
       <button class="mini-b si" id="iCopia">Hacer</button><button class="cerrar" id="iCopiaNo" aria-label="Ahora no">✕</button></div>` : ''}
     ${lineaDeudas()}
@@ -1438,6 +1452,8 @@ function vistaInicio() {
       $('bGuardar').onclick = guardarMovimiento;
       if ($('iDeudas')) $('iDeudas').onclick = hojaDeudas;
       if ($('iCopia')) $('iCopia').onclick = hacerCopia;
+      if ($('iCuadrar')) $('iCuadrar').onclick = () => hojaCuadrar({ desdeAviso: true });
+      if ($('iCuadrarNo')) $('iCuadrarNo').onclick = () => { D.cuadreAplazado = hoyIso(); guardarDatos(); aviso('Te lo recordaremos mañana'); pintarApp(); };
       if ($('iCopiaNo')) $('iCopiaNo').onclick = () => { D.copiaCallada = masDias(hoyIso(), DIAS_AVISO_COPIA); guardarDatos(); aviso('Te lo recordaremos en 2 semanas'); pintarApp(); };
       // Lo escrito en Apuntar pasa a la deuda (y al guardarla se vacía Apuntar: tu parte ya se apunta como gasto)
       if ($('bDividir')) $('bDividir').onclick = () => hojaNuevaDeuda({ importe: F.importe, desc: F.desc, cat: F.cat, cuenta: F.cuenta, fecha: F.fecha,
@@ -2167,11 +2183,10 @@ function vistaResumen() {
       <div class="tarjeta">
         <div class="cab-tarjeta"><div class="tit-tarjeta">Deberías tener</div></div>
         ${conSaldo.length ? saldos.map(x => fila([x.k.emoji, esc(x.k.nombre),
-            x.s === null ? 'Sin saldo puesto' : 'Desde el ' + fechaCorta(x.k.saldoFecha), x.s === null ? '—' : `<span class="${x.s < 0 ? 'neg' : ''}">${eur(x.s)}</span>`])).join('')
+            x.s === null ? 'Sin saldo puesto' : 'Desde el ' + fechaCorta(x.k.saldoFecha) + (huchaEnCuenta(x.k.id, c) ? ' · incluye 🐷 ' + eur(huchaEnCuenta(x.k.id, c)) + ' de la hucha' : ''), x.s === null ? '—' : `<span class="${x.s < 0 ? 'neg' : ''}">${eur(x.s)}</span>`])).join('')
           + (conSaldo.length > 1 ? `<div class="res-total"><span>Total</span><span>${eur(conSaldo.reduce((t, x) => t + x.s, 0))}</span></div>` : '')
-          + (D.cuadrado === h
-            ? `<div class="cuadre ok"><span>✓ Te cuadra · comprobado hoy</span><button class="enlace" id="rCuadraNo">Corregir</button></div>`
-            : `<div class="cuadre"><span>¿Te cuadra con tu banco?</span><div class="cuadre-b"><button class="mini-b" id="rCuadraNo">No</button><button class="mini-b si" id="rCuadraSi">Sí</button></div></div>`)
+          + `<button class="boton contorno" id="rCuadrar" style="margin-top:14px">⚖️ Cuadrar dinero</button>
+             <div class="nota" style="text-align:center;margin-top:6px">${textoCuadrado()}</div>`
           : `<p class="nota" style="margin:0 0 12px">Pon cuánto tienes ahora en ${D.cuentas.length > 1 ? 'cada cuenta' : D.cuentas[0] ? esc(D.cuentas[0].nombre) : 'tu cuenta'} y Pre$u te dirá cuánto deberías tener, para comprobar que no se te olvida apuntar nada.</p>
              <button class="boton contorno" id="rSaldos">Poner lo que tengo</button>`}
       </div>
@@ -2187,22 +2202,56 @@ function vistaResumen() {
         </div>
       </div>`,
     montar() {
-      if ($('rSaldos')) $('rSaldos').onclick = hojaCuadrar;
-      if ($('rCuadraNo')) $('rCuadraNo').onclick = hojaCuadrar;
+      if ($('rSaldos')) $('rSaldos').onclick = () => hojaCuadrar();
+      if ($('rCuadrar')) $('rCuadrar').onclick = () => hojaCuadrar();
+      if ($('rCuadraNo')) $('rCuadraNo').onclick = () => hojaCuadrar();
       if ($('rCuadraSi')) $('rCuadraSi').onclick = () => { D.cuadrado = hoyIso(); guardarDatos(); aviso('Perfecto, todo cuadra ✓'); pintarApp(); };
       segmento('rCat', v => { resTodo = v === 'todo'; pintarApp(); });
     }
   };
 }
 
+// La semana (o mes) anterior, si ya usabas Pre$u entonces
+function periodoPasado() {
+  const P = D.periodo, act = inicioPeriodo(hoyIso(), P), prev = periodoAnterior(act, P);
+  return prev >= inicioPeriodo(D.creado, P) ? prev : null;
+}
+// Aviso de cuadrar: al empezar la semana, si la anterior apuntaste menos de 3 gastos (y no has cuadrado ya esta semana)
+function tocaCuadrar() {
+  const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), prev = periodoPasado();
+  if (!prev || !D.cuentas.some(k => k.saldo != null)) return null;
+  if (D.cuadrado && D.cuadrado >= act) return null;
+  if (D.cuadreAplazado && D.cuadreAplazado >= h) return null;
+  const fin = finPeriodo(prev, P);
+  const n = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && m.origen !== 'cuadre' && m.fecha >= prev && m.fecha <= fin).length;
+  return n < 3 ? { prev, fin, n } : null;
+}
+function textoCuadrado() {
+  if (!D.cuadrado) return 'Aún no lo has comprobado con tu banco';
+  const n = Math.round((aUTC(hoyIso()) - aUTC(D.cuadrado)) / 864e5);
+  return n <= 0 ? '✓ Comprobado hoy' : n === 1 ? 'Comprobado ayer' : 'Comprobado hace ' + n + ' días';
+}
+// Cuánto de la hucha está en esta cuenta (lo que dice el banco la incluye; Pre$u nunca la cuenta para gastar)
+function huchaEnCuenta(id, c) {
+  const a = D.ahorro; c = c || calcular(D);
+  if (!a || a.modo !== 'hucha' || !(c.hucha > 0)) return 0;
+  if (a.porCuenta && Math.abs(sumaPorCuenta(a.porCuenta) - r2(c.hucha)) < 0.005) return r2(a.porCuenta[id] || 0);
+  return cuentaApp(a.cuenta) === id ? r2(c.hucha) : 0;
+}
 // Poner lo que hay en cada cuenta, o cuadrarlas si no coincide con el banco.
 // - Cuenta sin saldo puesto: se guarda como punto de partida (no cambia el presupuesto).
 // - Cuenta con saldo: si lo real no coincide con lo que dice Pre$u, la diferencia se apunta como «⚖️ Descuadre» hoy
 //   (falta dinero → gasto; sobra → ingreso extra), así cambia lo que te queda para gastar. Antes se pide confirmar.
 const txtSaldo = n => String(r2(n)).replace('.', ',');
-function hojaCuadrar() {
-  const mes = D.periodo === 'mes', h = hoyIso();
-  const filas = D.cuentas.map(k => { const e = saldoCuenta(k); return { k, esperado: e, txt: e === null ? '' : txtSaldo(e) }; });
+function hojaCuadrar(opts) {
+  opts = opts || {};
+  const mes = D.periodo === 'mes', h = hoyIso(), P = D.periodo, prev = periodoPasado();
+  // ¿A qué semana (o mes) va la diferencia? Desde el aviso del lunes, a la pasada; si no, se pregunta.
+  let cuandoFue = opts.desdeAviso && prev ? 'pasada' : 'esta';
+  const fechaDif = () => cuandoFue === 'pasada' && prev ? finPeriodo(prev, P) : h;
+  const c0 = calcular(D);
+  const filas = D.cuentas.map(k => { const e = saldoCuenta(k); return { k, esperado: e, txt: e === null ? '' : txtSaldo(e), hucha: huchaEnCuenta(k.id, c0), sobra: 'ahorro' }; });
+  const hayHucha = filas.some(f => f.hucha > 0);
   const hayAlguno = filas.some(f => f.esperado !== null);
   const real = f => { const t = String(f.txt).trim(); return t ? num(t) : null; };
   const difs = () => filas.filter(f => f.esperado !== null && real(f) !== null && !isNaN(real(f)) && r2(real(f) - f.esperado) !== 0)
@@ -2218,8 +2267,8 @@ function hojaCuadrar() {
     if (paso === 'poner') return {
       html: `<h2>${hayAlguno ? '¿Cuánto tienes de verdad?' : '¿Cuánto tienes ahora?'}</h2>
         <p class="ayuda">${hayAlguno ? 'Mira la app de tu banco y cambia lo que no cuadre. Pre$u apunta la diferencia por ti.'
-          : 'Mira la app de tu banco (o tu cartera) y pon lo que tienes hoy. Desde aquí, Pre$u suma lo que entra y resta lo que gastas.'}</p>
-        <div class="tarjeta">${filas.map((f, i) => `<div class="saldo-fila"><span>${f.k.emoji} ${esc(f.k.nombre)}${f.esperado !== null ? `<small id="cd${i}">${lineaDif(f)}</small>` : ''}</span>
+          : 'Mira la app de tu banco (o tu cartera) y pon lo que tienes hoy. Desde aquí, Pre$u suma lo que entra y resta lo que gastas.'}${hayHucha ? ' Pon lo que dice el banco, <b>con la hucha incluida</b>: Pre$u ya sabe que no es para gastar.' : ''}</p>
+        <div class="tarjeta">${filas.map((f, i) => `<div class="saldo-fila"><span>${f.k.emoji} ${esc(f.k.nombre)}${f.esperado !== null ? `<small id="cd${i}">${lineaDif(f)}</small>` : ''}${f.hucha ? `<small>Incluye 🐷 ${eur(f.hucha)} de la hucha</small>` : ''}</span>
           <input data-i="${i}" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(f.txt)}"></div>`).join('')}</div>
         <div class="botones-hoja"><button class="boton" id="hGuardar">${hayAlguno ? 'Cuadrar' : 'Guardar'}</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
       montar() {
@@ -2238,25 +2287,55 @@ function hojaCuadrar() {
       }
     };
     // Paso 2: confirmar (cambia lo que te queda para gastar)
-    const ds = difs(), neto = r2(ds.reduce((t, f) => t + f.d, 0)), c = calcular(D), despues = r2(c.queda + neto);
-    const cuando = mes ? 'este mes' : 'esta semana';
+    // Lo que sobra y son ahorros no cambia lo que te queda (solo corrige la cuenta)
+    const ds = difs().map(f => Object.assign(f, { sobra: filas.find(x => x.k === f.k).sobra }));
+    const cuenta = f => f.d < 0 || f.sobra === 'dinero';
+    const neto = r2(ds.filter(cuenta).reduce((t, f) => t + f.d, 0)), c = calcular(D);
+    // Cómo queda de verdad (si va a la semana pasada, cambia lo que te sobró allí y lo que pasa a esta)
+    const d2 = JSON.parse(JSON.stringify(D));
+    ds.filter(cuenta).forEach(f => d2.movimientos.push({ id: 'sim', tipo: f.d < 0 ? 'gasto' : 'ingreso', importe: Math.abs(f.d), desc: '', cat: 'Descuadre', cuenta: f.k.id, fecha: fechaDif() }));
+    const c2 = calcular(d2), despues = c2.queda;
+    const antP = prev ? calcular(D, h, prev).queda : 0, antP2 = prev ? calcular(d2, h, prev).queda : 0;
+    const cuando = mes ? 'este mes' : 'esta semana', pasadaTxt = mes ? 'el mes pasado' : 'la semana pasada';
+    const sobraTxt = n => (n >= 0 ? 'te sobraron ' : 'te faltaron ') + eur(Math.abs(n));
     return {
       html: `<h2>¿Cuadramos tus cuentas?</h2>
-        <p class="ayuda">Se apuntará la diferencia como <b>⚖️ Descuadre</b> con fecha de hoy.</p>
-        <div class="tarjeta">${ds.map(f => `<div class="saldo-fila"><span>${f.k.emoji} ${esc(f.k.nombre)}<small>${f.d < 0 ? 'Gastos sin apuntar' : 'Dinero que no habías apuntado'}</small></span>
-          <b class="${f.d < 0 ? 'neg' : 'pos'}">${f.d < 0 ? '−' : '+'}${eur(Math.abs(f.d))}</b></div>`).join('')}</div>
+        <p class="ayuda">${ds.some(cuenta) ? 'Lo que cambie lo que te queda se apuntará como <b>⚖️ Descuadre</b>.' : 'Solo se corrige lo que tienes en la cuenta.'}</p>
+        <div class="tarjeta">${ds.map((f, i) => `<div class="saldo-fila"><span>${f.k.emoji} ${esc(f.k.nombre)}<small>${f.d < 0 ? 'Gastos sin apuntar' : '¿Qué es este dinero?'}</small></span>
+          <b class="${f.d < 0 ? 'neg' : 'pos'}">${f.d < 0 ? '−' : '+'}${eur(Math.abs(f.d))}</b></div>
+          ${f.d > 0 ? `<div class="sobra-op" data-i="${i}">
+            <button class="${f.sobra === 'ahorro' ? 'on' : ''}" data-v="ahorro"><i></i><span><b>🐷 Son ahorros / la hucha</b><small>No cambia lo que te queda</small></span></button>
+            <button class="${f.sobra === 'dinero' ? 'on' : ''}" data-v="dinero"><i></i><span><b>💶 Dinero que no había apuntado</b><small>Se suma para gastar</small></span></button></div>` : ''}`).join('')}</div>
+        ${ds.some(cuenta) && prev ? `<div class="etq">¿Cuándo pasó?</div>
+          ${seg('cCuando', [['pasada', mayus(pasadaTxt)], ['esta', mayus(cuando)]], cuandoFue)}
+          <p class="nota" style="margin:6px 6px 0">${cuandoFue === 'pasada' ? 'Se apunta el ' + fechaCorta(finPeriodo(prev, P)) + '. ' + mayus(pasadaTxt) + ' ' + sobraTxt(antP) + (antP2 !== antP ? '; ahora ' + sobraTxt(antP2) : '') + '.'
+            : 'Se apunta hoy y cuenta ' + cuando + '.'}</p>` : ''}
         ${neto !== 0 ? `<div class="tarjeta cuadre-efecto"><span>Te queda ${cuando}</span>
-          <div><s>${eur(c.queda)}</s> → <b class="${despues < 0 ? 'neg' : ''}">${eur(despues)}</b></div></div>
+          <div>${c.queda !== despues ? `<s>${eur(c.queda)}</s> → ` : ''}<b class="${despues < 0 ? 'neg' : ''}">${eur(despues)}</b></div></div>
+          ${c.queda === despues && cuandoFue === 'pasada' ? `<p class="nota" style="margin:8px 6px 0">No cambia porque lo que te sobra ${mes ? 'cada mes' : 'cada semana'} va al ahorro: baja lo ahorrado.</p>` : ''}
           ${despues < 0 ? `<p class="nota" style="margin:8px 6px 0">Lo que falte se restará ${mes ? 'del mes que viene' : 'de la semana que viene'}.</p>` : ''}`
-        : `<p class="nota" style="margin:8px 6px 0">Una cuenta sube y otra baja lo mismo: lo que te queda ${cuando} no cambia.</p>`}
+        : `<p class="nota" style="margin:8px 6px 0">${ds.some(cuenta) ? 'Una cuenta sube y otra baja lo mismo: lo' : 'Lo'} que te queda ${cuando} no cambia.</p>`}
         <div class="botones-hoja"><button class="boton" id="hConfirmar">Confirmar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
-      montar() { $('hConfirmar').onclick = () => guardarCuadre(ds, nuevos()); }
+      montar() {
+        if ($('cCuando')) segmento('cCuando', v => { cuandoFue = v; pintarHoja(); });
+        document.querySelectorAll('.sobra-op button').forEach(b => b.onclick = () => {
+          filas.find(x => x.k === ds[+b.parentNode.dataset.i].k).sobra = b.dataset.v; pintarHoja();
+        });
+        $('hConfirmar').onclick = () => guardarCuadre(ds, nuevos());
+      }
     };
   });
   function guardarCuadre(ds, ns) {
     const ahora = Date.now();
-    ds.forEach((f, i) => D.movimientos.push({ id: nuevoId(), tipo: f.d < 0 ? 'gasto' : 'ingreso', importe: Math.abs(f.d), desc: 'Descuadre',
-      cat: 'Descuadre', cuenta: f.k.id, fecha: h, ts: ahora + i, origen: 'cuadre' }));
+    ds.forEach((f, i) => {
+      // Ahorros: no es dinero para gastar → solo se corrige lo que tiene la cuenta (punto de partida nuevo)
+      if (f.d > 0 && f.sobra === 'ahorro') return Object.assign(f.k, { saldo: r2(real(f)), saldoFecha: h, saldoEn: ahora + 50 + i });
+      const fecha = fechaDif();
+      D.movimientos.push({ id: nuevoId(), tipo: f.d < 0 ? 'gasto' : 'ingreso', importe: Math.abs(f.d), desc: 'Descuadre',
+        cat: 'Descuadre', cuenta: f.k.id, fecha, ts: ahora + i, origen: 'cuadre' });
+      // Con fecha de la semana pasada: la cuenta se pone directamente en lo que dice el banco (así cuadra aunque su punto de partida sea posterior)
+      if (fecha < h) Object.assign(f.k, { saldo: r2(real(f)), saldoFecha: h, saldoEn: ahora + 50 + i });
+    });
     ns.forEach(f => Object.assign(f.k, { saldo: r2(real(f)), saldoFecha: h, saldoEn: ahora + 50 }));
     if (ds.length || hayAlguno) D.cuadrado = h;
     guardarDatos(); cerrarHoja();
