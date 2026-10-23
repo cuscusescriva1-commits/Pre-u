@@ -2617,14 +2617,18 @@ function hojaCuadrar(opts) {
   const real = f => { const t = String(f.txt).trim(); return t ? num(t) : null; };
   const difs0 = () => filas.filter(f => f.esperado !== null && real(f) !== null && !isNaN(real(f)) && r2(real(f) - f.esperado) !== 0)
     .map(f => Object.assign({ d: r2(real(f) - f.esperado) }, f));
-  // Traspasos: si una cuenta baja y otra sube lo mismo (o casi: una comisión del cajero), seguramente has pasado dinero de una a otra
-  // (ej: sacar del cajero). Se pregunta y, si es eso, no cambia lo que te queda. trasp['idDe>idA'] = true (sí) / false (no)
+  // Traspasos: si una cuenta baja y otra sube, seguramente has pasado dinero de una a otra (ej: sacar del cajero).
+  // Se pregunta siempre (marcado «Sí») y, si es eso, no cambia lo que te queda. Cuenta también:
+  // - aunque no sea la misma cantidad (Revolut −80 y Efectivo +50 → traspaso de 50 y 30 de gastos sin apuntar), y
+  // - aunque la cuenta que sube aún no tuviera saldo puesto (ej: el efectivo, la primera vez que lo pones).
+  // trasp['idDe>idA'] = true (sí) / false (no)
   const trasp = {};
   function parejas(ds) {
-    const negs = ds.filter(f => f.d < 0).sort((a, b) => a.d - b.d), pos = ds.filter(f => f.d > 0), usadas = new Set(), r = [];
+    const nuevasPos = filas.filter(f => f.esperado === null && real(f) > 0).map(f => Object.assign({ d: r2(real(f)), nueva: true }, f));
+    const negs = ds.filter(f => f.d < 0).sort((a, b) => a.d - b.d), pos = ds.filter(f => f.d > 0).concat(nuevasPos), usadas = new Set(), r = [];
     negs.forEach(n => {
-      const x = -n.d, tol = Math.max(2, x * 0.05);
-      const p = pos.filter(q => !usadas.has(q) && Math.abs(q.d - x) <= tol + 1e-9).sort((a, b) => Math.abs(a.d - x) - Math.abs(b.d - x))[0];
+      const x = -n.d;
+      const p = pos.filter(q => !usadas.has(q)).sort((a, b) => Math.abs(a.d - x) - Math.abs(b.d - x))[0];   // la que más se parece
       if (!p) return;
       usadas.add(p);
       const k = n.k.id + '>' + p.k.id;
@@ -2721,7 +2725,7 @@ function hojaCuadrar(opts) {
       html: `<h2>¿Cuadramos tus cuentas?</h2>
         ${preguntas.map(x => `<div class="etq">¿Has pasado dinero de ${esc(x.de.k.nombre)} a ${esc(x.a.k.nombre)}?</div>
           <div class="sobra-op tr-op" data-tr="${x.k}">
-            <button class="${trasp[x.k] ? 'on' : ''}" data-v="si"><i></i><span><b>🔁 Sí, ${eur(x.t)} de ${esc(x.de.k.nombre)} a ${esc(x.a.k.nombre)}</b><small>Sacar del cajero, pasar a otra cuenta… No cambia lo que te queda</small></span></button>
+            <button class="${trasp[x.k] ? 'on' : ''}" data-v="si"><i></i><span><b>🔁 Sí, ${eur(x.t)} de ${esc(x.de.k.nombre)} a ${esc(x.a.k.nombre)}</b><small>Sacar del cajero, pasar a otra cuenta… No cambia lo que te queda${r2(-x.de.d - x.t) > 0 ? '. Los otros ' + eur(r2(-x.de.d - x.t)) + ' de ' + esc(x.de.k.nombre) + ' van abajo' : !x.a.nueva && r2(x.a.d - x.t) > 0 ? '. Los otros ' + eur(r2(x.a.d - x.t)) + ' de ' + esc(x.a.k.nombre) + ' van abajo' : ''}</small></span></button>
             <button class="${trasp[x.k] ? '' : 'on'}" data-v="no"><i></i><span><b>No, son cosas distintas</b><small>Lo miramos cuenta por cuenta</small></span></button></div>`).join('')}
         <p class="ayuda">${ds.some(cuenta) ? 'Lo que cambie lo que te queda se apuntará como <b>⚖️ Descuadre</b>.' : tr.length && !ds.length ? 'Se apunta como traspaso entre tus cuentas.' : 'Solo se corrige lo que tienes en la cuenta.'}</p>
         <div class="tarjeta">${tr.map(x => `<div class="saldo-fila"><span>🔁 Traspaso<small>${esc(x.de.k.nombre)} → ${esc(x.a.k.nombre)}</small></span><b>${eur(x.t)}</b></div>`).join('')}
