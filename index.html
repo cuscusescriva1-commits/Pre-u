@@ -1541,6 +1541,7 @@ function pintarInicio(recien) {
   // Para usar lo nuevo: borrar los datos y volver a hacer el cuestionario (o cambiar el día en Ajustes → Perfil).
   if (D.diaMes == null) { D.diaMes = 1; if (D.inicial === undefined) D.inicial = null; guardarDatos(); }
   fijarDiaMes(D);
+  arreglarObjetivosBorrados();
   // Versión 3: se AÑADEN las categorías nuevas (antes de «Otros») sin quitar ni mover las que ya tienes
   if (D.categorias && D.catVersion === 2) {
     const iO = D.categorias.indexOf('Otros'), faltan = CAT_NUEVAS_V3.filter(k => !D.categorias.some(x => x.toLowerCase() === k.toLowerCase()));
@@ -3915,6 +3916,13 @@ function hojaRecuperar(c, d) {
 // ---------- 🎯 Objetivos: pantallas ----------
 const OBJ_RAPIDOS = [['✈️', 'Viaje'], ['📱', 'Móvil'], ['🚗', 'Coche'], ['🪪', 'Carnet de conducir'], ['💻', 'Ordenador'], ['🎮', 'Consola'], ['🎁', 'Regalo'], ['🛟', 'Colchón'], ['🎯', 'Otro']];
 const objetivosVivos = () => (D.objetivos || []).filter(o => !o.cerradoEn);
+// Lo que se aparta para este objetivo en el periodo de hoy (sin contar ingresos extra que le mandaste)
+function aporteEsta(o, c) {
+  const P = D.periodo, act = inicioPeriodo(hoyIso(), P);
+  c = c || calcular(D);
+  const antes = (c.objAccIni || {})[o.id];
+  return aporteObjetivo(o, act, P, antes == null ? o.inicial || 0 : antes);
+}
 const unidad = P => P === 'mes' ? 'al mes' : 'a la semana';
 // Lo que llevabas en un objetivo antes de este periodo (para que un cambio empiece aquí sin tocar lo de antes)
 function accAntes(o, act) {
@@ -4124,6 +4132,8 @@ function hojaObjetivo(o, ctx) {
 function hojaVerObjetivo(o) {
   const P = D.periodo, mes = P === 'mes', h = hoyIso();
   const c = calcular(D), info = infoObjetivo(o, c);
+  // Al borrar, lo de esta semana (o mes) no se aparta: vuelve a lo que te queda. Solo hay que decidir qué hacer con lo de antes.
+  const estaVez = aporteEsta(o, c), llevaAlBorrar = r2(info.lleva - estaVez);
   const E = { paso: 'ver', gastado: fmtImporte(info.lleva), desc: o.nombre, cuenta: cuentaApp(D.ultimaCuenta), destino: 'hucha' };
   const restoDe = () => r2(info.lleva - (E.paso === 'usar' ? Math.min(info.lleva, Math.max(0, num(E.gastado) || 0)) : 0));
   const opcionesResto = () => `<div class="sobra-op" id="oDest">
@@ -4161,7 +4171,8 @@ function hojaVerObjetivo(o) {
     }
     if (E.paso === 'borrar') return {
       html: `<h2>¿Borrar «${esc(o.nombre)}»?</h2>
-        ${info.lleva > 0 ? `<p class="ayuda">Llevas ${eur(info.lleva)} apartados. ¿Qué hacemos con ellos?</p>${opcionesResto()}` : '<p class="ayuda">Aún no has apartado nada.</p>'}
+        ${estaVez > 0 ? `<p class="ayuda">Los ${eur(estaVez)} que apartabas ${mes ? 'este mes' : 'esta semana'} vuelven a lo que te queda.</p>` : ''}
+        ${llevaAlBorrar > 0 ? `<p class="ayuda">${estaVez > 0 ? 'De antes llevas' : 'Llevas'} ${eur(llevaAlBorrar)} apartados. ¿Qué hacemos con ellos?</p>${opcionesResto()}` : estaVez > 0 ? '' : '<p class="ayuda">Aún no has apartado nada.</p>'}
         <div class="botones-hoja"><button class="boton rojo-txt" id="hGuardar" style="background:var(--card)">Borrar objetivo</button><button class="boton sec" id="uVolver">‹ Volver</button></div>`,
       montar() {
         document.querySelectorAll('#oDest button').forEach(b => b.onclick = () => { E.destino = b.dataset.v; pintarHoja(); });
@@ -4189,18 +4200,48 @@ function hojaVerObjetivo(o) {
     };
   });
 }
+// Arreglo (24/10): antes, al borrar un objetivo, lo de esa semana se seguía restando y se mandaba a la hucha (o a «para gastar»).
+// Se corrige una sola vez en los objetivos ya borrados: esa semana deja de apartarse y se quita lo mismo de donde se mandó (el total no cambia).
+function arreglarObjetivosBorrados() {
+  if (D.arregloBorrados) return;
+  const P = D.periodo;
+  (D.objetivos || []).forEach(o => {
+    if (!o.borrado || !o.cerradoEn || !o.final) return;
+    const sem = inicioPeriodo(o.cerradoEn, P);
+    if (o.cerrado !== siguientePeriodo(sem, P)) return;
+    const accIni = (calcular(D, hoyIso(), sem).objAccIni || {})[o.id];
+    const v = aporteObjetivo(o, sem, P, accIni == null ? o.inicial || 0 : accIni);
+    o.cerrado = sem;
+    if (!(v > 0) || !(o.final.resto >= v - 0.004)) return;
+    o.final.resto = r2(o.final.resto - v);
+    if (o.final.destino === 'hucha') {
+      quitarDeHucha(v);
+      // si la hucha solo existía por esto, desaparece
+      const a = D.ahorro;
+      if (a && a.modo === 'hucha' && Math.abs(a.importe) < 0.005 && !Object.keys(a.porCuenta || {}).length && !D.movimientos.some(x => x.hucha || x.destino === 'hucha')) D.ahorro = null;
+    }
+    else {
+      const m = D.movimientos.find(x => x.origen === 'objetivo' && x.tipo === 'ingreso' && x.fecha === o.cerradoEn && x.desc === 'De tu objetivo «' + o.nombre + '»');
+      if (m) { m.importe = r2(m.importe - v); if (!(m.importe > 0)) D.movimientos.splice(D.movimientos.indexOf(m), 1); }
+    }
+  });
+  D.arregloBorrados = true;
+  guardarDatos();
+}
 // Cerrar un objetivo (al usar el dinero o al borrarlo). Lo que sobra va a la hucha o pasa a ser para gastar este periodo.
 // Deja de apartar desde el periodo que viene; lo de antes no cambia (por eso no se borra de verdad: queda como cerrado).
+// Al BORRARLO, deja de apartar ya desde este periodo: lo de esta semana (o mes) vuelve a lo que te queda (arreglo del 24/10).
 function cerrarObjetivo(o, gastado, desc, cuenta, destino, borrar) {
   const P = D.periodo, h = hoyIso(), act = inicioPeriodo(h, P), ahora = Date.now();
-  const lleva = infoObjetivo(o).lleva, resto = r2(lleva - gastado);
+  const c = calcular(D), estaVez = borrar ? aporteEsta(o, c) : 0;
+  const lleva = r2(infoObjetivo(o, c).lleva - estaVez), resto = r2(lleva - gastado);
   cuenta = cuentaApp(cuenta);
   if (gastado > 0) D.movimientos.push({ id: nuevoId(), tipo: 'gasto', importe: gastado, desc, cat: 'Objetivos', cuenta, fecha: h, ts: ahora, objetivo: o.id });
   if (resto > 0) {
     if (destino === 'hucha') volverAHucha(resto, cuenta);
     else D.movimientos.push({ id: nuevoId(), tipo: 'ingreso', importe: resto, desc: 'De tu objetivo «' + o.nombre + '»', cuenta, fecha: h, ts: ahora + 1, sinCuenta: true, origen: 'objetivo' });
   }
-  Object.assign(o, { cerrado: siguientePeriodo(act, P), cerradoEn: h, final: { gastado, resto: resto > 0 ? resto : 0, destino } });
+  Object.assign(o, { cerrado: borrar ? act : siguientePeriodo(act, P), cerradoEn: h, final: { gastado, resto: resto > 0 ? resto : 0, destino } });
   if (borrar) o.borrado = true;
   D.ultimaCuenta = cuenta;
   guardarDatos(); cerrarHoja();
