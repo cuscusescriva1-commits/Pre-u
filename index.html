@@ -307,6 +307,30 @@ input[type=date].texto{min-height:52px}
 .res-fila .cant{font-weight:700;font-size:16px;white-space:nowrap}
 .res-total{display:flex;justify-content:space-between;font-weight:700;padding-top:12px;margin-top:2px;border-top:1px solid var(--sep);font-size:15.5px}
 .cat-fila{padding:9px 0}
+.prog-top .prog-tit{font-size:22px;font-weight:750;letter-spacing:-.3px}
+.prog-top .prog-res{color:var(--sub);font-size:14.5px;margin-top:4px}
+.prog-top .prog-racha{font-size:15px;font-weight:650;margin-top:10px}
+.prog-msg{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--acento-suave)}
+.prog-msg .pm-tit{font-size:15px;font-weight:700}
+.prog-msg .pm-txt{font-size:14px;color:var(--txt);margin-top:3px;line-height:1.4}
+.prog-msg .ca-bot{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.prog-mes-cab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.prog-mes-cab b{font-size:17px}
+.prog-mes-cab span{font-size:13px;color:var(--sub)}
+.pastillas{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pastillas.meses{grid-template-columns:repeat(4,1fr)}
+.past{position:relative;overflow:hidden;border:0;border-radius:12px;padding:9px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--campo);color:var(--txt)}
+.past b{font-size:13px;font-weight:650;position:relative}
+.past span{font-size:11.5px;font-weight:600;position:relative;white-space:nowrap}
+.past.verde{background:rgba(16,185,129,.18)}.past.verde span{color:var(--verde)}
+.past.amarillo{background:rgba(245,158,11,.2)}.past.amarillo span{color:#B45309}
+.past.rojo{background:rgba(239,68,68,.16)}.past.rojo span{color:var(--rojo)}
+.past.gris{background:none;box-shadow:inset 0 0 0 1.5px var(--sep)}.past.gris span{color:var(--sub)}
+.past.curso{background:none;box-shadow:inset 0 0 0 2px var(--acento)}.past.curso span{color:var(--acento)}
+.past.curso i{position:absolute;left:0;right:0;bottom:0;background:var(--acento-suave)}
+.prog-leyenda{text-align:center;margin:4px 8px 0}
+:root[data-tema="oscuro"] .past.amarillo span{color:#FBBF24}
+@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]) .past.amarillo span{color:#FBBF24}}
 .cat-nav{padding:10px 0 0}
 .cat-rango{text-align:center;margin:10px 0 0}
 .cat-frase{font-size:15px;line-height:1.4;margin:14px 2px 4px;color:var(--txt)}
@@ -1344,7 +1368,7 @@ const tramoDeMov = (m, P) => { const desde = inicioPeriodo(m.fecha, P), ultimo =
 // ---------- El cálculo de cada semana o mes ----------
 // Va periodo a periodo desde que empezó a usar Pre$u hasta hoy, pasando lo que sobra (o falta) de uno al siguiente.
 // «hasta» (opcional): calcular hasta otro periodo, por ejemplo uno futuro para ver lo previsto
-function calcular(d, hoy = hoyIso(), hasta) {
+function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array donde se apunta el resultado de cada periodo (para 📅 Progreso)
   const P = d.periodo;
   fijarDiaMes(d);
   // Ingreso fijo: lo que aún no ha llegado se cuenta normal; si ya tocaba y no ha contestado, NO cuenta hasta que diga que sí.
@@ -1408,6 +1432,7 @@ function calcular(d, hoy = hoyIso(), hasta) {
     const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha && !x.objetivo).reduce((s, x) => s + x.importe, 0);
     const total = entra + deInicio + deAhorros + deRepartos - fijos - aObjetivos + arrastre + extras;
     res = { ini: p, fin, entra, deInicio, deAhorros, deRepartos, fijos, aObjetivos, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo };
+    if (hist) hist.push(Object.assign({ nGastos: movs.filter(x => x.tipo === 'gasto' && !x.hucha && !x.objetivo).length, sob: p < actual ? sobranteEn(d, p) : null }, res));
     // Al acabar un periodo: si falta dinero, se resta del siguiente; si sobra, al ahorro, al siguiente o a tus objetivos (según eligió)
     if (p < actual) {
       const sob = sobranteEn(d, p);
@@ -1447,15 +1472,19 @@ function calcular(d, hoy = hoyIso(), hasta) {
   }
   // Objetivos: lo que llevas apartado en cada uno (los cerrados ya se usaron o se movieron)
   const objetivosAhorrado = r2(objs.filter(o => !o.cerradoEn).reduce((s, o) => s + objAcc[o.id], 0));
+  // 🎁 Caprichos (📅 Progreso): dinero sacado de lo ahorrado para gastar una semana (ya cuenta en esa semana como ingreso extra)
+  ahorrado -= d.movimientos.filter(x => x.origen === 'capricho' && x.fecha <= finPeriodo(actual, P)).reduce((s, x) => s + x.importe, 0);
   return Object.assign(res, { ahorrado: r2(ahorrado), hucha, aHucha, pendientes, gastarQueda, inicialQueda, repartosQueda, objAcc, objAccIni: objAccIni || objAcc, objetivosAhorrado });
 }
 
 // ---------- Estado de la app ----------
 // Categorías por defecto, ordenadas por lo que más suelen gastar los jóvenes (lo fijo, como piso o móvil, va en «Gastos fijos»)
-const CATEGORIAS = ['Comida', 'Ocio', 'Súper', 'Transporte', 'Fiesta', 'Viajes', 'Otros'];
-const CAT_VERSION = 2;   // súbelo si cambias la lista y quieres que se ponga a todos
+const CATEGORIAS = ['Comida', 'Ocio', 'Súper', 'Transporte', 'Fiesta', 'Viajes', 'Casa', 'Salud', 'Ropa', 'Suscripciones', 'Estudios', 'Regalos', 'Otros'];
+const CAT_VERSION = 3;   // súbelo si cambias la lista y quieres que se ponga a todos
+const CAT_NUEVAS_V3 = ['Casa', 'Salud', 'Ropa', 'Suscripciones', 'Estudios', 'Regalos'];   // 24/10: más categorías de serie (pedido por Carles)
 const CAT_EMOJI = { 'Comer fuera': '🍔', 'Súper': '🛒', Fiesta: '🍻', Compras: '🛍️', Transporte: '🚌', Ocio: '🎬', Ropa: '👕', Viajes: '✈️',
-  'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔', Descuadre: '⚖️', Deudas: '🤝', Objetivos: '🎯' };
+  'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔', Descuadre: '⚖️', Deudas: '🤝', Objetivos: '🎯',
+  Casa: '🏠', Salud: '💊', Suscripciones: '📱' };
 // El emoji de cada categoría: el que eligió el usuario (D.catEmoji, desde el 24/10), o el de serie, o 🏷️
 const emojiCat = c => (typeof D !== 'undefined' && D && D.catEmoji && D.catEmoji[c]) || CAT_EMOJI[c] || '🏷️';
 const EMOJIS_CAT = ['👨‍👧', '🐶', '🏠', '💊', '🎓', '📚', '👕', '💇', '🎮', '🎁', '⚽', '🚗', '⛽', '☕', '🍺', '🍔', '🛒', '🎬', '✈️', '📱', '💡', '🚬', '🎵', '🏋️', '💄', '🧸', '🍼', '🐱', '🎨', '🧾'];
@@ -1463,6 +1492,7 @@ const ICONOS = {
   inicio: '<svg viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>',
   movimientos: '<svg viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="17.5" r="1.2"/></svg>',
   resumen: '<svg viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20v-10"/></svg>',
+  progreso: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14.5l2.2 2.2 4.8-4.7"/></svg>',
   ajustes: '<svg class="rueda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 };
 let D = null;              // los datos guardados (localStorage['presu'])
@@ -1511,6 +1541,11 @@ function pintarInicio(recien) {
   // Para usar lo nuevo: borrar los datos y volver a hacer el cuestionario (o cambiar el día en Ajustes → Perfil).
   if (D.diaMes == null) { D.diaMes = 1; if (D.inicial === undefined) D.inicial = null; guardarDatos(); }
   fijarDiaMes(D);
+  // Versión 3: se AÑADEN las categorías nuevas (antes de «Otros») sin quitar ni mover las que ya tienes
+  if (D.categorias && D.catVersion === 2) {
+    const iO = D.categorias.indexOf('Otros'), faltan = CAT_NUEVAS_V3.filter(k => !D.categorias.some(x => x.toLowerCase() === k.toLowerCase()));
+    D.categorias.splice(iO < 0 ? D.categorias.length : iO, 0, ...faltan); D.catVersion = CAT_VERSION; guardarDatos();
+  }
   if (!D.categorias || (D.catVersion || 1) < CAT_VERSION) {
     D.categorias = CATEGORIAS.slice(); D.catVersion = CAT_VERSION;
     D.movimientos.forEach(m => { if (m.cat === 'Comer fuera') m.cat = 'Comida'; });
@@ -1525,7 +1560,7 @@ function pintarInicio(recien) {
 
 function pintarApp(conAnimacion) {
   const y = window.scrollY;
-  const v = vista === 'inicio' ? vistaInicio() : vista === 'movimientos' ? vistaMovimientos() : vista === 'ajustes' ? vistaAjustes() : vistaResumen();
+  const v = vista === 'inicio' ? vistaInicio() : vista === 'movimientos' ? vistaMovimientos() : vista === 'ajustes' ? vistaAjustes() : vista === 'progreso' ? vistaProgreso() : vistaResumen();
   $('raiz').innerHTML = `<section class="app ${conAnimacion ? '' : 'quieta'}">${v.html}</section>${vista === 'ajustes' ? '' : barra()}`;
   if (!conAnimacion) window.scrollTo(0, y);
   if ($('bAjustes')) $('bAjustes').onclick = () => irA('ajustes');
@@ -1538,7 +1573,7 @@ function irA(v) {
   pintarApp(true); window.scrollTo(0, 0);
 }
 function barra() {
-  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['resumen', 'Resumen']].map(([v, t]) =>
+  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['progreso', 'Progreso'], ['resumen', 'Resumen']].map(([v, t]) =>
     `<button data-v="${v}" class="${vista === v ? 'on' : ''}">${ICONOS[v]}<span>${t}</span></button>`).join('')}</nav>`;
 }
 const botonAjustes = `<button class="atras" id="bAjustes" aria-label="Ajustes">${ICONOS.ajustes}</button>`;
@@ -1646,7 +1681,7 @@ function vistaInicio() {
         const k = clave(p.item, p.fecha);
         const responder = (v, t) => { D.cambios[k] = v; guardarDatos(); otraCantidad = false; aviso(t); pintarApp(); };
         $('pSi').onclick = () => responder({ importe: p.item.importe }, 'Sumado: +' + eur(p.item.importe));
-        $('pNo').onclick = () => responder({ no: true }, 'Vale, no lo contamos');
+        $('pNo').onclick = () => hojaNoLlega(p.item, p.fecha, () => responder({ no: true }, 'Vale, no lo contamos'));
         $('pOtra').onclick = () => { otraCantidad = !otraCantidad; pintarApp(); if (otraCantidad) $('pImporte').focus(); };
         if ($('pGuardar')) $('pGuardar').onclick = () => {
           const n = num($('pImporte').value);
@@ -1882,6 +1917,47 @@ function hojaSinFondos(imp, f) {
       if ($('sfHucha')) $('sfHucha').onclick = () => { cerrarHoja(); F.hucha = true; guardarMovimiento(); };
       $('sfIgual').onclick = () => { cerrarHoja(); F.fondosVisto = true; guardarMovimiento(); };
       $('hCancelar').onclick = cerrarHoja;
+    }
+  }));
+}
+
+// ---------- Un ingreso fijo que se para unas semanas (idea de la prueba de 5 meses: Laura en verano) ----------
+// Al decir «No»: ¿solo esta vez, o no te llegará hasta una fecha? Si eliges fecha, todas las veces de en medio cuentan 0 sin preguntar.
+function hojaNoLlega(it, fecha, soloEsta) {
+  const h = hoyIso(), E = { modo: 'esta', hasta: '', otra: false };
+  const rapidas = [...(it.frec === 'semana' ? [['En 2 semanas', masDias(fecha, 14)]] : []), ['En 1 mes', fechaEnMeses(1)], ['En 3 meses', fechaEnMeses(3)]]
+    .filter(([, f]) => f > fecha);
+  const veces = () => E.hasta > fecha ? fechasDe(it, fecha, masDias(E.hasta, -1)).length : 0;
+  const nota = () => !(E.hasta > fecha) ? 'Elige desde cuándo te vuelve a llegar.'
+    : `Hasta el ${fechaLarga(E.hasta)} no te preguntaremos: ${veces() === 1 ? 'esa vez cuenta' : 'esas ' + veces() + ' veces cuentan'} 0 €. Si al final te llega, cámbialo en Movimientos.`;
+  const op = (v, t, sub) => `<button class="${E.modo === v ? 'on' : ''}" data-v="${v}"><i></i><span><b>${t}</b><small>${sub}</small></span></button>`;
+  abrirHoja(() => ({
+    html: `<h2>${it.emoji} No te ha llegado</h2>
+      <p class="ayuda">${esc(it.nombre)} · ${eur(it.importe)}. ¿Cuándo te volverá a llegar?</p>
+      <div class="sobra-op" id="nlOp">
+        ${op('esta', '🔁 La próxima vez, como siempre', 'Solo esta vez no cuenta')}
+        ${op('hasta', '📅 No me llegará hasta…', 'Por ejemplo, en verano. No te preguntaremos hasta esa fecha')}
+        ${E.modo === 'hasta' ? `<div class="tarjeta" style="margin:0 0 4px"><div class="chips" id="nlFechas">${rapidas.map(([t, f]) => `<button class="chip ${!E.otra && E.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
+            <button class="chip ${E.otra ? 'on' : ''}" data-f="otra">Otra fecha</button></div>
+          ${E.otra ? `<input id="nlHasta" class="texto campo" type="date" min="${masDias(fecha, 1)}" value="${E.hasta}" style="margin-top:10px">` : ''}
+          <p class="nota" id="nlNota" style="margin:10px 2px 0">${nota()}</p></div>` : ''}
+      </div>
+      <div class="botones-hoja"><button class="boton" id="nlGuardar">Guardar</button><button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      document.querySelectorAll('#nlOp > button').forEach(b => b.onclick = () => { E.modo = b.dataset.v; pintarHoja(); });
+      if ($('nlFechas')) $('nlFechas').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+        if (b.dataset.f === 'otra') { E.otra = true; E.hasta = ''; pintarHoja(); if ($('nlHasta')) $('nlHasta').focus(); return; }
+        E.otra = false; E.hasta = b.dataset.f; pintarHoja();
+      });
+      if ($('nlHasta')) $('nlHasta').onchange = e => { E.hasta = e.target.value; $('nlNota').innerHTML = nota(); };
+      $('hCancelar').onclick = cerrarHoja;
+      $('nlGuardar').onclick = () => {
+        if (E.modo === 'esta') { cerrarHoja(); return soloEsta(); }
+        if (!(E.hasta > fecha)) return aviso('Elige desde cuándo te vuelve a llegar');
+        fechasDe(it, fecha, masDias(E.hasta, -1)).forEach(f => { D.cambios[clave(it, f)] = { no: true }; });
+        guardarDatos(); cerrarHoja(); otraCantidad = false;
+        aviso('Vale: hasta el ' + fechaCorta(E.hasta) + ' no cuenta'); pintarApp();
+      };
     }
   }));
 }
@@ -2605,12 +2681,199 @@ function hojaTraspaso(m) {
   }));
 }
 
+// ---------- 📅 Progreso (24/10, idea de Carles: tú contra ti mismo, sin rankings ni medallas) ----------
+// Cada semana (o mes) se pinta al acabar según lo que te sobró de LO DE ESA SEMANA (sin lo que venía de la anterior):
+//   🟢 sobró ≥ 10 % de lo que tenías · 🟡 sobró menos del 10 % · 🔴 te pasaste · ⚪ sin apuntar nada (no rompe la racha) · la de ahora, «en curso».
+function historialProgreso() {
+  const hist = [], c = calcular(D, hoyIso(), undefined, hist), P = D.periodo, act = inicioPeriodo(hoyIso(), P);
+  const lista = hist.map(w => {
+    const propio = r2(w.total - w.arrastre), neto = r2(w.queda - w.arrastre), curso = w.ini === act;
+    const estado = curso ? 'curso' : !w.nGastos ? 'gris' : neto < -0.004 ? 'rojo' : (propio > 0 && neto < propio * 0.1 - 0.004) ? 'amarillo' : 'verde';
+    const mesClave = P === 'mes' ? w.ini.slice(0, 4) : masDias(w.ini, 3).slice(0, 7);   // la semana va con el mes de su jueves; los meses, por año
+    return Object.assign({}, w, { propio, neto, curso, estado, mesClave });
+  });
+  // Racha: periodos acabados seguidos sin pasarte (los grises no suman ni rompen). Récord: la mejor racha.
+  let racha = 0, record = 0, run = 0;
+  lista.filter(w => !w.curso).forEach(w => { if (w.estado === 'gris') return; run = w.estado === 'rojo' ? 0 : run + 1; record = Math.max(record, run); });
+  for (let i = lista.length - 1; i >= 0; i--) { const w = lista[i]; if (w.curso || w.estado === 'gris') continue; if (w.estado === 'rojo') break; racha++; }
+  return { lista, c, act, racha, record };
+}
+const ESTADO_TXT = { verde: 'Te sobró', amarillo: 'Justo', rojo: 'Te pasaste', gris: 'Sin apuntar', curso: 'En curso' };
+const nombreMes = clave => mayus(MESES_L[+clave.slice(5, 7) - 1]);
+// Las 3 categorías en las que más gastaste entre dos fechas
+function topCategorias(ini, fin, n) {
+  const pc = {};
+  D.movimientos.forEach(m => { if (m.tipo === 'gasto' && !m.hucha && !m.objetivo && m.fecha >= ini && m.fecha <= fin) pc[m.cat || 'Otros'] = r2((pc[m.cat || 'Otros'] || 0) + m.importe); });
+  return Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, n || 3);
+}
+// Un objetivo «cada semana» al que se puede subir lo que apartas (primero el colchón)
+function objetivoParaListon() {
+  const c = calcular(D);
+  const vivos = objetivosVivos().filter(o => o.modo === 'semanal' && !(o.meta > 0 && infoObjetivo(o, c).hecho));
+  return vivos.find(o => o.colchon) || vivos[0] || null;
+}
+function cambiarCuota(o, cuota) {
+  const P = D.periodo, act = inicioPeriodo(hoyIso(), P), base = accAntes(o, act);
+  o.cuota = r2(cuota);
+  o.planes = (o.planes || []).filter(x => x.desde < act).concat([planObjetivo(o, act, base, P)]);
+}
+// El mensaje del «entrenador»: UNO cada vez. Las propuestas (capricho, bajar el listón, volver) como mucho una por semana (o mes).
+function mensajeProgreso(H) {
+  const P = D.periodo, mes = P === 'mes', u = mes ? 'mes' : 'semana', us = mes ? 'meses' : 'semanas';
+  const G = D.progreso || {}, cerradas = H.lista.filter(w => !w.curso), conDatos = cerradas.filter(w => w.estado !== 'gris');
+  const actual = H.lista[H.lista.length - 1], previa = cerradas[cerradas.length - 1];
+  const puedeProponer = G.propuesta !== H.act;
+  // ¿Empieza mes (o es el primer periodo de un mes nuevo)?
+  const empiezaMes = !mes && previa && actual && previa.mesClave !== actual.mesClave;
+  const mesPrev = empiezaMes ? cerradas.filter(w => w.mesClave === previa.mesClave) : mes && previa ? [previa] : [];
+  const nombrePrev = mes ? (previa ? mayus(MESES_L[+masDias(previa.ini, 15).slice(5, 7) - 1]) : '') : previa ? nombreMes(previa.mesClave) : '';
+  if (puedeProponer) {
+    // 1) Capricho: solo si lo que te sobra va al ahorro. La mitad de lo que ahorraste el mes pasado, redondeado a 5 €.
+    if (D.sobrante === 'ahorro' && mesPrev.length && G.noCapricho !== (previa && previa.ini)) {
+      const ahorradoMes = r2(mesPrev.filter(w => w.sob === 'ahorro' && w.queda > 0).reduce((s, w) => s + w.queda, 0));
+      const ya = D.movimientos.some(x => x.origen === 'capricho' && x.fecha >= H.act);
+      const x = Math.min(Math.floor(ahorradoMes / 2 / 5) * 5, Math.floor((H.c.ahorrado || 0) / 5) * 5);
+      if (!ya && x >= 5) return { tipo: 'capricho', importe: x, clave: previa.ini,
+        tit: `🎁 ${nombrePrev} ahorraste ${eur(ahorradoMes)}`, txt: `Te has ganado un capricho. ¿Sacamos <b>${eur(x)}</b> de tu ahorro para ${mes ? 'este mes' : 'esta semana'}?`,
+        si: `Sí, ${eur(x, 0)} para mí`, no: 'No, que siga ahorrado' };
+    }
+    // 2) Volver a como estaba: si desde que apartas más te has pasado 2 seguidas
+    const L = G.liston, oL = L && (D.objetivos || []).find(o => o.id === L.obj && !o.cerradoEn);
+    if (oL) {
+      const desde = conDatos.filter(w => w.ini >= L.desde).slice(-2);
+      if (desde.length === 2 && desde.every(w => w.estado === 'rojo')) return { tipo: 'volver', obj: oL,
+        tit: `Te has pasado 2 ${us} seguid${mes ? 'os' : 'as'}`, txt: `Desde que apartas ${eur(L.extra)} más para ${oL.emoji} ${esc(oL.nombre)}. ¿Lo dejamos como antes (${eur(L.cuotaAntes)} ${unidad(P)})?`,
+        si: 'Sí, como antes', no: 'No, sigo así' };
+    }
+    // 3) Bajar el listón: 4 semanas (3 meses) seguidas en verde y de media te sobra bastante
+    const n = mes ? 3 : 4, ult = conDatos.slice(-n), media = ult.length ? r2(ult.reduce((s, w) => s + w.neto, 0) / ult.length) : 0, extra = mes ? 20 : 5;
+    const reciente = L && contarPeriodos(L.desde, H.act, P) <= n;
+    if (ult.length === n && ult.every(w => w.estado === 'verde') && media > (mes ? 40 : 10) && !reciente) {
+      const o = objetivoParaListon();
+      return { tipo: o ? 'liston' : 'colchon', obj: o, extra,
+        tit: `🔥 ${n} ${us} seguid${mes ? 'os' : 'as'} en verde`, txt: `Te sobran unos <b>${eur(media)}</b> ${unidad(P)}. ${o ? `¿Apartamos <b>${eur(extra)}</b> más ${unidad(P)} para ${o.emoji} ${esc(o.nombre)}?` : `¿Empezamos un 🛟 colchón con <b>${eur(extra)}</b> ${unidad(P)}?`}`,
+        si: o ? `Sí, ${eur(extra, 0)} más` : 'Crear colchón', no: 'Ahora no' };
+    }
+  }
+  // Mensajes sin pregunta
+  const ult4 = conDatos.slice(-4);
+  if (ult4.length >= 3 && ult4.filter(w => w.estado === 'rojo').length >= 3) {
+    const top = topCategorias(ult4[0].ini, ult4[ult4.length - 1].fin, 1)[0];
+    return { tipo: 'info', tit: `Te has pasado ${ult4.filter(w => w.estado === 'rojo').length} de ${mes ? 'los últimos' : 'las últimas'} ${ult4.length} ${us}`,
+      txt: top ? `Lo que más sube es ${emojiCat(top[0])} ${esc(top[0])}. Sin agobios: mira en qué se te va y prueba a recortar un poco ahí.` : 'Sin agobios: mira en qué se te va.', boton: 'Ver en qué gastas' };
+  }
+  if (D.sobrante === 'siguiente' && actual && actual.arrastre >= 1) return { tipo: 'info', tit: `💸 Tienes ${eur(actual.arrastre)} extra`,
+    txt: `Es lo que te sobró ${mes ? 'el mes pasado' : 'la semana pasada'}: ya está en lo que te queda. ¡Disfrútalos!` };
+  if (empiezaMes && mesPrev.some(w => w.estado !== 'gris')) {
+    const v = mesPrev.filter(w => w.estado === 'verde').length, sum = r2(mesPrev.reduce((s, w) => s + w.neto, 0));
+    return { tipo: 'info', tit: `${nombrePrev}: ${v >= mesPrev.length / 2 && sum >= 0 ? 'lo has bordado 💪' : 'mes cerrado'}`,
+      txt: `${v} de ${mesPrev.length} semanas en verde · ${sum >= 0 ? 'te sobraron ' + eur(sum) : 'te pasaste ' + eur(-sum)}. ${sum >= 0 ? 'A por otro igual.' : 'Este mes, a por ello.'}` };
+  }
+  if (H.racha >= 3) return { tipo: 'info', tit: `🔥 Llevas ${H.racha} ${us} sin pasarte`, txt: 'Vas genial. Sigue así.' };
+  if (!conDatos.length) return { tipo: 'info', tit: mes ? 'Tu primer mes' : 'Tu primera semana', txt: `Apunta lo que gastes y, cuando acabe, ${mes ? 'el mes' : 'la semana'} se pinta aquí de color.` };
+  return null;
+}
+function vistaProgreso() {
+  const H = historialProgreso(), P = D.periodo, mes = P === 'mes', us = mes ? 'meses' : 'semanas';
+  const msg = mensajeProgreso(H), actual = H.lista[H.lista.length - 1];
+  // Tarjeta de arriba: el mes en curso (o el año, si vas por meses)
+  const delBloque = H.lista.filter(w => w.mesClave === actual.mesClave && !w.curso && w.estado !== 'gris');
+  const verdes = delBloque.filter(w => w.estado === 'verde').length, suma = r2(delBloque.reduce((s, w) => s + w.neto, 0));
+  const titulo = mes ? 'Este año' : nombreMes(actual.mesClave);
+  const resumen = delBloque.length ? `${verdes} de ${delBloque.length} ${mes ? (delBloque.length === 1 ? 'mes' : 'meses') : (delBloque.length === 1 ? 'semana' : 'semanas')} en verde · ${suma >= 0 ? 'te han sobrado ' + eur(suma) : 'te has pasado ' + eur(-suma)}`
+    : `${mes ? 'Tu primer mes del año' : 'Tu primera semana del mes'} se pinta cuando acabe`;
+  const lineaRacha = H.racha ? `🔥 Llevas ${H.racha} ${H.racha === 1 ? (mes ? 'mes' : 'semana') : us} sin pasarte${H.record > H.racha ? ` · tu récord: ${H.record}` : H.racha >= 2 ? ' · ¡es tu récord!' : ''}`
+    : H.record ? `Tu récord: ${H.record} ${us} seguid${mes ? 'os' : 'as'} sin pasarte` : '';
+  // Bloques: meses (o años) del más nuevo al más viejo; dentro, las semanas en orden
+  const bloques = [];
+  H.lista.forEach((w, i) => { let b = bloques.find(x => x.clave === w.mesClave); if (!b) bloques.push(b = { clave: w.mesClave, items: [] }); b.items.push(Object.assign({ i }, w)); });
+  bloques.reverse();
+  const pastilla = w => {
+    const dias = mes ? mayus(MESES[+masDias(w.ini, 15).slice(5, 7) - 1]) : (+w.ini.slice(8)) + '–' + (+w.fin.slice(8));
+    const pie = w.curso ? 'En curso' : w.estado === 'gris' ? 'Vacía' : (w.neto >= 0 ? '+' : '−') + eur(Math.abs(w.neto), 0);
+    const pct = w.curso && w.propio > 0 ? Math.min(100, Math.max(0, w.gastado / w.propio * 100)) : 0;
+    return `<button class="past ${w.estado}" data-i="${w.i}">${w.curso ? `<i style="height:${pct.toFixed(0)}%"></i>` : ''}<b>${dias}</b><span>${pie}</span></button>`;
+  };
+  const cuenta = b => { const n = e => b.items.filter(w => w.estado === e).length; return [['verde', '🟢'], ['amarillo', '🟡'], ['rojo', '🔴']].filter(([e]) => n(e)).map(([e, ico]) => n(e) + ' ' + ico).join('  '); };
+  const html = `<div class="cab"><h1>Progreso</h1>${botonAjustes}</div>
+    <div class="tarjeta prog-top">
+      <div class="prog-tit">${titulo}</div>
+      <div class="prog-res">${resumen}</div>
+      ${lineaRacha ? `<div class="prog-racha">${lineaRacha}</div>` : ''}
+      ${msg ? `<div class="prog-msg"><div class="pm-tit">${msg.tit}</div><div class="pm-txt">${msg.txt}</div>
+        ${msg.si ? `<div class="ca-bot"><button class="mini-b si" id="pgSi">${msg.si}</button><button class="mini-b" id="pgNo">${msg.no}</button></div>`
+          : msg.boton ? `<div class="ca-bot"><button class="mini-b si" id="pgVer">${msg.boton}</button></div>` : ''}</div>` : ''}
+    </div>
+    ${bloques.map(b => `<div class="tarjeta prog-mes"><div class="prog-mes-cab"><b>${mes ? b.clave : nombreMes(b.clave) + (b.clave.slice(0, 4) !== hoyIso().slice(0, 4) ? ' ' + b.clave.slice(0, 4) : '')}</b><span>${cuenta(b)}</span></div>
+      <div class="pastillas ${mes ? 'meses' : ''}">${b.items.map(pastilla).join('')}</div></div>`).join('')}
+    <p class="nota prog-leyenda">🟢 te sobró · 🟡 justo (menos del 10 %) · 🔴 te pasaste · ⚪ vacía (no apuntaste nada). Toca ${mes ? 'un mes' : 'una semana'} para ver qué pasó.</p>`;
+  return {
+    html,
+    montar() {
+      document.querySelectorAll('.past').forEach(b => b.onclick = () => hojaSemanaProgreso(H.lista[+b.dataset.i]));
+      if ($('pgVer')) $('pgVer').onclick = () => { resCat = { modo: 'ult', off: 0 }; resSel = null; irA('resumen'); };
+      const marcar = extra => { D.progreso = Object.assign({}, D.progreso, { propuesta: H.act }, extra || {}); };
+      if ($('pgNo')) $('pgNo').onclick = () => {
+        marcar(msg.tipo === 'capricho' ? { noCapricho: msg.clave } : null);
+        guardarDatos(); aviso(msg.tipo === 'capricho' ? 'Vale, sigue ahorrado 💰' : 'Vale, seguimos así'); pintarApp();
+      };
+      if ($('pgSi')) $('pgSi').onclick = () => {
+        if (msg.tipo === 'capricho') {
+          D.movimientos.push({ id: nuevoId(), tipo: 'ingreso', importe: msg.importe, desc: '🎁 Capricho', cuenta: cuentaApp(D.ultimaCuenta), fecha: hoyIso(), ts: Date.now(), origen: 'capricho', sinCuenta: true });
+          marcar(); guardarDatos(); aviso(`¡Disfrútalo! +${eur(msg.importe)} ${mes ? 'este mes' : 'esta semana'} 🎁`); pintarApp(); return;
+        }
+        if (msg.tipo === 'liston') {
+          const o = msg.obj, antes = o.cuota || 0;
+          cambiarCuota(o, antes + msg.extra);
+          marcar({ liston: { obj: o.id, extra: msg.extra, desde: H.act, cuotaAntes: antes } });
+          guardarDatos(); aviso(`Hecho: ${eur(o.cuota)} ${unidad(P)} para ${o.nombre} 💪`); pintarApp(); return;
+        }
+        if (msg.tipo === 'volver') {
+          const o = msg.obj, L = D.progreso.liston;
+          cambiarCuota(o, L.cuotaAntes);
+          marcar(); delete D.progreso.liston;
+          guardarDatos(); aviso('Vuelve a ' + eur(o.cuota) + ' ' + unidad(P)); pintarApp(); return;
+        }
+        if (msg.tipo === 'colchon') {
+          marcar(); guardarDatos();
+          hojaObjetivo(null, Object.assign(ctxApp(null), { colchon: true, pre: { cuota: fmtImporte(msg.extra) } }));
+        }
+      };
+    }
+  };
+}
+// Qué pasó una semana (o mes)
+function hojaSemanaProgreso(w) {
+  const mes = D.periodo === 'mes', top = topCategorias(w.ini, w.fin, 3);
+  const linea = (a, b, cls) => `<div class="linea"><span>${a}</span><b class="${cls || ''}">${b}</b></div>`;
+  const cab = { verde: '🟢 Te sobraron ' + eur(w.neto), amarillo: '🟡 Justo: te sobraron ' + eur(Math.max(0, w.neto)), rojo: '🔴 Te pasaste ' + eur(-w.neto),
+    gris: '⚪ No apuntaste ningún gasto', curso: (mes ? 'Este mes' : 'Esta semana') + ' llevas ' + eur(w.gastado) + ' de ' + eur(w.propio) }[w.estado];
+  abrirHoja(() => ({
+    html: `<h2>${w.curso ? (mes ? 'Este mes' : 'Esta semana') : textoRango(w.ini, w.fin)}</h2>
+      <p class="ayuda" style="font-weight:600;color:var(--txt)">${cab}</p>
+      ${w.estado === 'gris' ? '<p class="nota" style="margin:-4px 2px 12px">Puede que se te olvidara apuntar. No cuenta como verde ni rompe tu racha.</p>' : ''}
+      <div class="tarjeta desglose" style="margin-top:0">
+        ${linea('Tenías ' + (mes ? 'este mes' : 'esa semana'), eur(w.propio))}
+        ${Math.abs(w.arrastre) >= 0.005 ? linea(mes ? 'Del mes anterior' : 'De la semana anterior', (w.arrastre > 0 ? '+' : '−') + eur(Math.abs(w.arrastre))) : ''}
+        ${linea('Gastaste', '−' + eur(w.gastado))}
+        ${w.curso ? '' : linea(w.neto >= 0 ? 'Te sobró' : 'Te pasaste', eur(Math.abs(w.neto)), w.neto < 0 ? 'neg' : 'pos')}
+      </div>
+      ${top.length ? `<div class="etq">Donde más gastaste</div><div class="tarjeta">${top.map(([k, v], i) => `<div class="linea"><span>${i + 1}. ${emojiCat(k)} ${esc(k)}</span><b>${eur(v)}</b></div>`).join('')}</div>` : ''}
+      <div class="botones-hoja"><button class="boton contorno" id="psMovs">Ver movimientos de ${mes ? 'ese mes' : 'esa semana'}</button><button class="boton sec" id="hCancelar">Cerrar</button></div>`,
+    montar() {
+      $('hCancelar').onclick = cerrarHoja;
+      $('psMovs').onclick = () => { cerrarHoja(); movIni = w.ini; irA('movimientos'); };
+    }
+  }));
+}
+
 // ---------- 📊 Resumen ----------
 // Gráfico redondo: al abrir Pre$u siempre empieza en esta semana (o mes). modo: 'periodo' (con flechas, off = cuántos hacia atrás) · 'ult' (8 semanas / 6 meses) · 'todo'
 let resCat = { modo: 'periodo', off: 0 }, resSel = null;
 // Colores fijos por categoría (iguales en claro y oscuro: tonos medios que se ven en los dos)
-const COLOR_CAT = { Comida: '#F59E0B', 'Súper': '#10B981', Ocio: '#8B5CF6', Transporte: '#3B82F6', Fiesta: '#EC4899', Viajes: '#06B6D4', Otros: '#94A3B8', Descuadre: '#64748B', Deudas: '#A8A29E', Objetivos: '#14B8A6' };
-const PALETA = ['#EF4444', '#F97316', '#84CC16', '#6366F1', '#D946EF', '#EAB308', '#0EA5E9', '#14B8A6', '#A16207', '#BE185D', '#4D7C0F', '#7C3AED'];
+const COLOR_CAT = { Comida: '#F59E0B', 'Súper': '#10B981', Ocio: '#8B5CF6', Transporte: '#3B82F6', Fiesta: '#EC4899', Viajes: '#06B6D4', Otros: '#94A3B8', Descuadre: '#64748B', Deudas: '#A8A29E', Objetivos: '#14B8A6',
+  Casa: '#B45309', Salud: '#EF4444', Ropa: '#6366F1', Suscripciones: '#0EA5E9', Estudios: '#84CC16', Regalos: '#D946EF' };
+const PALETA = ['#F97316', '#EAB308', '#7C3AED', '#BE185D', '#4D7C0F', '#0F766E', '#1D4ED8', '#C2410C', '#9333EA', '#65A30D', '#DB2777', '#0891B2'];
 function colorCat(k) {
   if (COLOR_CAT[k]) return COLOR_CAT[k];
   const usados = new Set(Object.values(COLOR_CAT)), mias = D.categorias.filter(x => !COLOR_CAT[x]);
@@ -3543,7 +3806,7 @@ function textoExcel() {
   D.movimientos.forEach(m => {
     const tipo = m.tipo === 'traspaso' ? 'Traspaso' : m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto';
     const nota = m.hucha ? 'Pagado con la hucha' : m.objetivo ? 'De un objetivo' : m.destino === 'hucha' ? 'A la hucha' : m.destino === 'objetivo' ? 'A un objetivo'
-      : m.destino === 'repartir' ? 'Repartido hasta el ' + m.hasta : m.cat === 'Descuadre' ? 'Al cuadrar con el banco' : m.origen === 'applepay' ? 'Apple Pay' : '';
+      : m.destino === 'repartir' ? 'Repartido hasta el ' + m.hasta : m.origen === 'capricho' ? 'De tu ahorro (capricho)' : m.cat === 'Descuadre' ? 'Al cuadrar con el banco' : m.origen === 'applepay' ? 'Apple Pay' : '';
     filas.push([m.fecha, tipo, m.tipo === 'gasto' ? -m.importe : m.importe, m.desc || '', m.cat || '', cta(m.cuenta), m.tipo === 'traspaso' ? cta(m.a) : '', nota]);
   });
   D.fijos.forEach(it => fechasDe(it, D.creado, h).forEach(f => {
@@ -3764,6 +4027,7 @@ function hojaObjetivo(o, ctx) {
   F.colchon = o ? !!o.colchon : !!ctx.colchon;
   F.sinFin = !!(o && o.colchon && !o.meta);
   if (F.colchon && !o) { F.emoji = '🛟'; F.nombre = 'Colchón'; F.modo = 'semanal'; }
+  if (!o && ctx.pre) Object.assign(F, ctx.pre);
   const n0 = t => { const n = num(t); return n > 0 ? r2(n) : 0; };
   const metaF = () => F.colchon && F.sinFin ? 0 : n0(F.meta);
   function nota() {
