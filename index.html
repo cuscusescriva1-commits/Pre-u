@@ -169,6 +169,9 @@ input[type=date].texto{min-height:52px}
 .hero-etq{color:var(--sub);font-size:15px}
 .hero .grande{font-size:52px;margin:4px 0 2px}
 .hero-fechas{color:var(--sub);font-size:13.5px}
+.hero-sobra{color:var(--sub);font-size:13px;margin-top:8px}
+.ult-copia{text-align:center;font-size:15px;font-weight:600;color:var(--verde);margin:0 0 12px}
+.ult-copia.vieja{color:var(--rojo)}
 .barrita{height:6px;border-radius:3px;background:var(--campo);overflow:hidden;margin:16px 0 0}
 .barrita i{display:block;height:100%;border-radius:3px;background:var(--acento);transition:width .35s ease}
 .barrita i.neg{background:var(--rojo)}
@@ -205,7 +208,17 @@ input[type=date].texto{min-height:52px}
 .cat-n{font-size:12.5px;font-weight:500;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-t.on .cat-e{background:var(--acento-suave);box-shadow:inset 0 0 0 2px var(--acento)}
 .cat-t.on .cat-n{color:var(--txt);font-weight:650}
+.cat-mas{justify-content:flex-start}
+.cat-mas .cat-e{background:var(--acento-suave);color:var(--acento);font-size:30px;font-weight:500}
+.emo-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.emo-grid button{border:0;background:var(--campo);border-radius:12px;font-size:24px;height:46px;padding:0}
+.emo-grid button.on{background:var(--acento-suave);box-shadow:inset 0 0 0 2px var(--acento)}
+.emo-ver{width:64px;height:64px;border-radius:20px;background:var(--acento-suave);display:flex;align-items:center;justify-content:center;font-size:34px;margin:4px auto 12px}
+.emo-propio{display:flex;align-items:center;gap:10px;margin-top:12px}
+.emo-propio span{flex:1;color:var(--sub);font-size:14px}
+.emo-propio input{width:64px;text-align:center;font-size:24px;padding:8px;border-radius:12px;border:0;background:var(--campo);color:var(--txt)}
 .atajos .chip{flex:none;font-size:14px;padding:8px 12px;white-space:nowrap}
+.atajos .chip.repetir{color:var(--acento);font-weight:600}
 .apuntar input.importe{font-size:46px;margin:10px 0 8px}
 .fila{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--campo);border-radius:12px;
   padding:6px 6px 6px 14px;margin-top:14px;font-size:15.5px;min-height:48px}
@@ -294,6 +307,28 @@ input[type=date].texto{min-height:52px}
 .res-fila .cant{font-weight:700;font-size:16px;white-space:nowrap}
 .res-total{display:flex;justify-content:space-between;font-weight:700;padding-top:12px;margin-top:2px;border-top:1px solid var(--sep);font-size:15.5px}
 .cat-fila{padding:9px 0}
+.cat-nav{padding:10px 0 0}
+.cat-rango{text-align:center;margin:10px 0 0}
+.cat-frase{font-size:15px;line-height:1.4;margin:14px 2px 4px;color:var(--txt)}
+.cat-frase b{font-weight:700}
+.donut-caja{position:relative;width:220px;max-width:70%;margin:6px auto 4px;aspect-ratio:1}
+.donut{width:100%;height:100%;display:block;overflow:visible}
+.donut .trozo{cursor:pointer;transition:opacity .15s,stroke-width .15s}
+.donut .trozo.apagado{opacity:.25}
+.donut .trozo.on{stroke-width:36}
+.donut-centro{position:absolute;inset:22%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+.donut-centro b{font-size:21px;font-weight:750;letter-spacing:-.3px}
+.donut-centro span{color:var(--sub);font-size:12.5px;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.donut-centro .dc-e{font-size:22px;color:inherit;margin:0 0 2px}
+.cat-lista{list-style:none;margin:8px 0 0;padding:0}
+.cat-lista li{display:flex;align-items:center;gap:10px;padding:10px 6px;margin:0 -6px;border-radius:12px;font-size:15.5px;cursor:pointer}
+.cat-lista li.on{background:var(--campo)}
+.cat-lista .num{width:18px;color:var(--sub);font-size:13px;font-weight:600;text-align:right;flex:none}
+.cat-lista i{width:10px;height:10px;border-radius:50%;flex:none}
+.cat-lista .nom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-lista .nom small{display:block;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.cat-lista .pct{color:var(--sub);font-size:13px;font-weight:500}
+.cat-lista b{font-weight:650}
 .cat-fila .arriba-cat{display:flex;align-items:center;gap:10px;font-size:15.5px}
 .cat-fila .arriba-cat span{flex:1;min-width:0}
 .cat-fila .arriba-cat small{color:var(--sub);font-size:13px;font-weight:500;margin-right:4px}
@@ -488,15 +523,65 @@ const num = s => { s = String(s ?? '').trim().replace(/[€\s]/g, ''); if (!s) r
   if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
   if (/^[-+]?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) return parseFloat(s.replace(/\./g, ''));
   return parseFloat(s); };
-const eur = (n, dec) => Number(n || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR',
-  minimumFractionDigits: dec === 0 ? 0 : 2, maximumFractionDigits: dec === 0 ? 0 : 2 });
+// Pone los puntos de los miles: «1234567» → «1.234.567» (en castellano, 1.000 también lleva punto)
+const puntos = e => String(e).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+// Cantidades en euros: «1.000,00 €», «1.000.000,00 €», «-12,50 €» (a mano, porque el móvil no pone el punto en los números de 4 cifras)
+const eur = (n, dec) => {
+  const d = dec === 0 ? 0 : 2, v = Number(n || 0), a = Math.round(Math.abs(v) * 10 ** d) / 10 ** d;
+  const [e, f] = a.toFixed(d).split('.');
+  return (v < 0 && a > 0 ? '-' : '') + puntos(e) + (f ? ',' + f : '') + '\u00a0€';
+};
 const r2 = n => Math.round(n * 100) / 100;
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function hoyIso() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
-const fmtImporte = n => (n || n === 0) && !isNaN(n) && n > 0 ? String(r2(n)).replace('.', ',') : '';
+// Número para dentro de una casilla: «1.387,13» (con los puntos de los miles; num() lo vuelve a leer bien)
+const txtNum = n => { const v = r2(n), [e, f] = String(Math.abs(v)).split('.'); return (v < 0 ? '-' : '') + puntos(e) + (f ? ',' + f : ''); };
+const fmtImporte = n => (n || n === 0) && !isNaN(n) && n > 0 ? txtNum(n) : '';
 
 // Si algo falla, que salga un aviso en vez de quedarse la pantalla sin hacer nada
 window.addEventListener('error', () => aviso('Algo ha fallado. Cierra Pre$u y vuelve a abrirla.'));
+
+// ---------- Puntos de los miles mientras escribes (pedido por Carles el 24/10) ----------
+// En todas las casillas de dinero (inputmode="decimal"): escribes «1000» y sale «1.000»; la coma es para los céntimos.
+// Si tu teclado tiene «.» en vez de «,», el punto que escribes cuenta como coma (los de los miles los pone Pre$u).
+function formatoEscrito(raw, caret, tecleado, pegado) {
+  let s = String(raw), neg = /^\s*-/.test(s);
+  let iDec = s.indexOf(',');
+  if (iDec < 0 && tecleado === '.' && s[caret - 1] === '.') iDec = caret - 1;
+  if (iDec < 0 && pegado && /^\s*-?\d+\.\d{1,2}\s*$/.test(s) && !/^\s*-?\d{1,3}\.\d{3}\s*$/.test(s)) iDec = s.indexOf('.');   // pegado «12.5»
+  const hayDec = iDec >= 0;
+  let ent = (hayDec ? s.slice(0, iDec) : s).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  const dec = hayDec ? s.slice(iDec + 1).replace(/\D/g, '').slice(0, 2) : '';
+  if (hayDec && !ent) ent = '0';
+  const v = (neg ? '-' : '') + puntos(ent) + (hayDec ? ',' + dec : '');
+  if (caret >= s.length) return { v, pos: v.length };
+  // El cursor se queda detrás de la misma cifra (los puntos que aparecen o desaparecen no lo mueven)
+  let sig = 0;
+  for (let i = 0; i < caret; i++) if (/\d/.test(s[i]) || i === iDec) sig++;
+  let pos = 0, k = 0;
+  while (pos < v.length && k < sig) { if (/[\d,]/.test(v[pos])) k++; pos++; }
+  return { v, pos };
+}
+const esCasillaDinero = el => el && el.tagName === 'INPUT' && el.getAttribute('inputmode') === 'decimal';
+document.addEventListener('beforeinput', e => {
+  const el = e.target;
+  if (!esCasillaDinero(el) || e.inputType !== 'deleteContentBackward') return;
+  const a = el.selectionStart, b = el.selectionEnd;
+  // Borrar justo detrás de un punto de los miles: se borra la cifra de antes (si no, el punto volvería a salir y parecería que no borra)
+  if (a === b && a > 1 && el.value[a - 1] === '.' && !el.value.includes(',')) {
+    e.preventDefault();
+    const raw = el.value.slice(0, a - 2) + el.value.slice(a), r = formatoEscrito(raw, a - 2);
+    el.value = r.v; try { el.setSelectionRange(r.pos, r.pos); } catch (x) {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}, true);
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!esCasillaDinero(el) || e.isComposing) return;
+  const caret = el.selectionStart == null ? el.value.length : el.selectionStart;
+  const r = formatoEscrito(el.value, caret, e.data, /paste|drop/i.test(e.inputType || ''));
+  if (r.v !== el.value) { el.value = r.v; try { el.setSelectionRange(r.pos, r.pos); } catch (x) {} }
+}, true);
 let tAviso;
 function aviso(t) {
   const a = $('aviso'); a.textContent = t; a.classList.add('ver');
@@ -609,7 +694,7 @@ function porQueNo(id) {
   if (id === 'fijos') return 'Pon nombre y cantidad a cada gasto (o quítalo con ✕)';
   if (id === 'saldos') return B.cuentas.length > 1 ? 'Pon cuánto tienes en cada cuenta (aunque sea 0)' : 'Pon cuánto tienes (aunque sea 0)';
   if (id === 'guardar') return queFaltaGuardar();
-  if (id === 'objetivos') return B.tieneObjetivos === true ? 'Añade tu objetivo (o elige «No, de momento no»)' : 'Elige una opción';
+  if (id === 'objetivos') return B.tieneObjetivos === true ? (B.tipoObj === 'colchon' ? 'Crea tu colchón (o elige «No, de momento no»)' : 'Añade tu objetivo (o elige «No, de momento no»)') : 'Elige una opción';
   return '';
 }
 
@@ -824,16 +909,20 @@ const PANTALLAS = {
         <p class="ayuda">Un viaje, un móvil, el carnet… Pre$u apartará un poco ${P === 'mes' ? 'cada mes' : 'cada semana'} para que llegues.</p>
         <div class="opciones" id="oTieneObj">
           ${opcion({ v: 'no', emoji: '🙅', titulo: 'No, de momento no', sub: 'Podrás crear objetivos cuando quieras', on: B.tieneObjetivos === false })}
-          ${opcion({ v: 'si', emoji: '🎯', titulo: 'Sí, tengo un objetivo', on: B.tieneObjetivos === true })}
+          ${opcion({ v: 'si', emoji: '🎯', titulo: 'Sí, tengo un objetivo', on: B.tieneObjetivos === true && B.tipoObj !== 'colchon' })}
+          ${opcion({ v: 'colchon', emoji: '🛟', titulo: 'Sí, quiero tener un colchón', sub: 'Ahorrar para imprevistos: hasta una cantidad o sin final', on: B.tieneObjetivos === true && B.tipoObj === 'colchon' })}
         </div>
         ${B.tieneObjetivos ? `${B.objetivos.length ? `<div class="tarjeta" style="margin-top:18px">${B.objetivos.map((o, i) => `<div class="fijo obj-b" data-i="${i}">
             <span class="ico">${o.emoji || '🎯'}</span><div class="txt-b"><b>${esc(o.nombre)}</b><span>${esc(resumenBorrador(o, P))}</span></div>
             <button class="quitar" data-q="${i}" aria-label="Quitar">✕</button></div>`).join('')}</div>` : ''}
-          <button class="boton contorno" id="oAnadir" style="margin-top:14px">＋ ${B.objetivos.length ? 'Añadir otro objetivo' : 'Añadir mi objetivo'}</button>` : ''}`,
+          <button class="boton contorno" id="oAnadir" style="margin-top:14px">＋ ${B.objetivos.length ? 'Añadir otro objetivo' : B.tipoObj === 'colchon' ? 'Crear mi colchón' : 'Añadir mi objetivo'}</button>
+          ${B.objetivos.length && !B.objetivos.some(o => o.colchon) ? '<button class="boton contorno" id="oColchon" style="margin-top:10px">🛟 Añadir un colchón</button>' : ''}` : ''}`,
       alMontar() {
-        elegirUna('oTieneObj', v => { B.tieneObjetivos = v === 'si'; }, true);
+        elegirUna('oTieneObj', v => { B.tieneObjetivos = v !== 'no'; B.tipoObj = v; }, true);
         if (!B.tieneObjetivos) return;
-        $('oAnadir').onclick = () => hojaObjetivo(null, ctxBorrador(null));
+        const colchonPrimero = B.tipoObj === 'colchon' && !B.objetivos.length;
+        $('oAnadir').onclick = () => hojaObjetivo(null, Object.assign(ctxBorrador(null), colchonPrimero ? { colchon: true } : {}));
+        if ($('oColchon')) $('oColchon').onclick = () => hojaObjetivo(null, Object.assign(ctxBorrador(null), { colchon: true }));
         document.querySelectorAll('.obj-b').forEach(el => el.onclick = e => {
           if (e.target.closest('.quitar')) return;
           const o = B.objetivos[+el.dataset.i]; hojaObjetivo(o, ctxBorrador(o));
@@ -1367,7 +1456,9 @@ const CATEGORIAS = ['Comida', 'Ocio', 'Súper', 'Transporte', 'Fiesta', 'Viajes'
 const CAT_VERSION = 2;   // súbelo si cambias la lista y quieres que se ponga a todos
 const CAT_EMOJI = { 'Comer fuera': '🍔', 'Súper': '🛒', Fiesta: '🍻', Compras: '🛍️', Transporte: '🚌', Ocio: '🎬', Ropa: '👕', Viajes: '✈️',
   'Cuidado personal': '💇', Estudios: '📚', Regalos: '🎁', Otros: '📦', Comida: '🍔', Descuadre: '⚖️', Deudas: '🤝', Objetivos: '🎯' };
-const emojiCat = c => CAT_EMOJI[c] || '🏷️';
+// El emoji de cada categoría: el que eligió el usuario (D.catEmoji, desde el 24/10), o el de serie, o 🏷️
+const emojiCat = c => (typeof D !== 'undefined' && D && D.catEmoji && D.catEmoji[c]) || CAT_EMOJI[c] || '🏷️';
+const EMOJIS_CAT = ['👨‍👧', '🐶', '🏠', '💊', '🎓', '📚', '👕', '💇', '🎮', '🎁', '⚽', '🚗', '⛽', '☕', '🍺', '🍔', '🛒', '🎬', '✈️', '📱', '💡', '🚬', '🎵', '🏋️', '💄', '🧸', '🍼', '🐱', '🎨', '🧾'];
 const ICONOS = {
   inicio: '<svg viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>',
   movimientos: '<svg viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="17.5" r="1.2"/></svg>',
@@ -1497,7 +1588,7 @@ function vistaInicio() {
   const gasto = F.tipo === 'gasto', trasp = F.tipo === 'traspaso';
   const chipsCta = (id, sel, quitar) => `<div class="chips" id="${id}">${D.cuentas.map(k =>
     `<button class="chip ${sel === k.id ? 'on' : ''} ${quitar === k.id ? 'apagado' : ''}" data-v="${k.id}">${k.emoji} ${esc(k.nombre)}</button>`).join('')}</div>`;
-  const atajos = listaAtajos(F.tipo);
+  const atajos = listaAtajos(F.tipo), ultimo = F.tipo === 'gasto' ? ultimoGasto() : null;
   const hucha = gasto && c.hucha !== null;
   const html = `
     <div class="cab"><div class="cab-izq">${LOGO}<div><div class="cab-hola">Hola, ${esc(D.nombre)}</div>
@@ -1511,6 +1602,7 @@ function vistaInicio() {
       <div class="grande ${c.queda < 0 ? 'neg' : 'pos'}">${eur(c.queda)}</div>
       <div class="hero-fechas">${rango}</div>
       <div class="barrita"><i class="${c.queda < 0 ? 'neg' : ''}" style="width:${pct}%"></i></div>
+      <div class="hero-sobra">${fraseSobra(c.queda, mes)}</div>
       <div class="desglose">${filas.map(([a, b]) => `<div class="linea"><span>${a}</span><b>${b}</b></div>`).join('')}
         ${(t => t ? `<div class="nota">${t}</div>` : '')(hayMensual && c.ciclo ? notaCiclo(c.ciclo) : '')}</div>
     </div>
@@ -1528,10 +1620,10 @@ function vistaInicio() {
     <div class="tarjeta apuntar" id="fApuntar">
       <div class="tit-tarjeta">Apuntar</div>
       ${seg('aTipo', D.cuentas.length > 1 ? [['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['traspaso', 'Traspaso']] : [['gasto', 'Gasto'], ['ingreso', 'Ingreso extra']], F.tipo)}
-      ${atajos.length ? `<div class="atajos" id="aAtajos">${atajos.map(m => `<button class="chip">${m.cat ? emojiCat(m.cat) : '💶'} ${esc(m.desc)}</button>`).join('')}</div>` : ''}
+      ${atajos.length || ultimo ? `<div class="atajos" id="aAtajos">${ultimo ? `<button class="chip repetir" id="aRepetir" aria-label="Repetir el último gasto">↻ Repetir ${emojiCat(ultimo.cat || 'Otros')} ${esc(ultimo.desc)} · ${eur(ultimo.importe)}</button>` : ''}${atajos.map((m, i) => `<button class="chip" data-i="${i}">${m.cat ? emojiCat(m.cat) : '💶'} ${esc(m.desc)}</button>`).join('')}</div>` : ''}
       <input id="aImp" class="importe" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.importe)}">
       ${gasto ? `<div class="cats-desliza" id="aCats">${D.categorias.map(k =>
-        `<button class="cat-t ${F.cat === k ? 'on' : ''}" data-v="${esc(k)}"><span class="cat-e">${emojiCat(k)}</span><span class="cat-n">${esc(k)}</span></button>`).join('')}</div>` : ''}
+        `<button class="cat-t ${F.cat === k ? 'on' : ''}" data-v="${esc(k)}"><span class="cat-e">${emojiCat(k)}</span><span class="cat-n">${esc(k)}</span></button>`).join('')}<button class="cat-t cat-mas" id="aCatMas" aria-label="Nueva categoría"><span class="cat-e">＋</span></button></div>` : ''}
       ${trasp ? `<p class="nota" style="margin:2px 2px 0;text-align:center">Pasar dinero de una cuenta a otra (ej: sacar del cajero). No cambia lo que te queda.</p>
         <div class="etq">¿De dónde sale?</div>${chipsCta('aDe', F.cuenta)}
         <div class="etq">¿A dónde va?</div>${chipsCta('aA', F.a, F.cuenta)}`
@@ -1576,15 +1668,25 @@ function vistaInicio() {
         F.a = b.dataset.v; pintarApp();
       });
       // Categorías: se marcan sin volver a pintar (así la fila no salta al principio)
-      document.querySelectorAll('#aCats .cat-t').forEach(b => b.onclick = () => {
+      document.querySelectorAll('#aCats .cat-t[data-v]').forEach(b => b.onclick = () => {
         F.cat = F.cat === b.dataset.v ? '' : b.dataset.v;
-        document.querySelectorAll('#aCats .cat-t').forEach(x => x.classList.toggle('on', x.dataset.v === F.cat));
+        document.querySelectorAll('#aCats .cat-t[data-v]').forEach(x => x.classList.toggle('on', x.dataset.v === F.cat));
       });
+      // ＋ verde al final: crear una categoría sin salir de Apuntar (lo escrito se queda y la nueva sale marcada)
+      if ($('aCatMas')) $('aCatMas').onclick = () => hojaCategoria(null, n => { F.cat = n; pintarApp(); });
       const catOn = document.querySelector('#aCats .cat-t.on');
       if (catOn) $('aCats').scrollLeft = Math.max(0, catOn.offsetLeft - $('aCats').clientWidth / 2 + catOn.offsetWidth / 2);
       document.querySelectorAll('#aCuentas .chip').forEach(b => b.onclick = () => { F.cuenta = b.dataset.v; pintarApp(); });
-      document.querySelectorAll('#aAtajos .chip').forEach((b, i) => b.onclick = () => {
-        const m = atajos[i]; F.desc = m.desc; F.cat = m.cat || ''; F.cuenta = cuentaApp(m.cuenta);
+      // ↻ Repetir: vuelve a apuntar el último gasto igual (hoy), con «Deshacer» por si te equivocas
+      if ($('aRepetir')) $('aRepetir').onclick = () => {
+        const n = D.movimientos.length;
+        F = Object.assign(formVacio('gasto'), { importe: fmtImporte(ultimo.importe), desc: ultimo.desc, cat: ultimo.cat || 'Otros', cuenta: cuentaApp(ultimo.cuenta) });
+        guardarMovimiento();
+        if (D.movimientos.length > n) { const m = D.movimientos[D.movimientos.length - 1];
+          avisoDeshacer('Apuntado otra vez: ' + m.desc + ' · ' + eur(m.importe), () => { D.movimientos = D.movimientos.filter(x => x.id !== m.id); guardarDatos(); pintarApp(); aviso('Deshecho'); }); }
+      };
+      document.querySelectorAll('#aAtajos .chip[data-i]').forEach(b => b.onclick = () => {
+        const m = atajos[+b.dataset.i]; F.desc = m.desc; F.cat = m.cat || ''; F.cuenta = cuentaApp(m.cuenta);
         pintarApp(); $('aImp').focus();
       });
       $('aCambiarFecha').onclick = () => {
@@ -1622,6 +1724,81 @@ function vistaInicio() {
   };
 }
 
+// Debajo de «Te queda»: qué pasa con lo que no gastes (recordarlo ayuda a no gastar hasta el último euro; idea del 24/10)
+function fraseSobra(queda, mes) {
+  const sig = mes ? 'al mes que viene' : 'a la semana que viene';
+  if (queda < -0.004) return 'Te has pasado: se restará ' + (mes ? 'del mes que viene' : 'de la semana que viene');
+  const objs = objetivosVivos();
+  if (D.sobrante === 'objetivos' && objs.length) return 'Lo que no gastes va a ' + (objs.length === 1 ? (objs[0].emoji || '🎯') + ' ' + esc(objs[0].nombre) : 'tus objetivos 🎯');
+  if (D.sobrante === 'ahorro' || D.sobrante === 'objetivos') return 'Lo que no gastes va a tu ahorro 💰';
+  return 'Lo que no gastes pasa ' + sig;
+}
+
+// ---------- Categoría: crear una nueva (nombre + emoji) o cambiar el emoji / quitar una que ya tienes ----------
+// alCrear(nombre): se llama al crearla (desde Apuntar la deja marcada sin perder lo escrito)
+const primerEmoji = t => {
+  t = String(t || '').trim(); if (!t) return '';
+  try { if (window.Intl && Intl.Segmenter) { const g = [...new Intl.Segmenter('es', { granularity: 'grapheme' }).segment(t)][0]; t = g ? g.segment : ''; } else t = Array.from(t).slice(0, 2).join(''); } catch (e) { t = Array.from(t)[0] || ''; }
+  return /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(t) ? t : '';
+};
+function hojaCategoria(nombre, alCrear) {
+  const nueva = !nombre;
+  const E = { nombre: '', emoji: nueva ? '' : emojiCat(nombre), propio: '' };
+  if (!nueva && !EMOJIS_CAT.includes(E.emoji)) E.propio = E.emoji;
+  abrirHoja(() => ({
+    html: `<h2>${nueva ? 'Nueva categoría' : esc(nombre)}</h2>
+      <div class="emo-ver" id="cVer">${E.emoji || '🏷️'}</div>
+      ${nueva ? `<div class="tarjeta"><input id="cNom" class="texto campo" type="text" maxlength="20" enterkeyhint="done" autocomplete="off" placeholder="Nombre (ej: Hijos)" value="${esc(E.nombre)}" style="margin:0"></div>` : ''}
+      <div class="etq">Elige un emoji</div>
+      <div class="tarjeta"><div class="emo-grid" id="cEmos">${EMOJIS_CAT.map(e => `<button class="${E.emoji === e ? 'on' : ''}" data-e="${e}">${e}</button>`).join('')}</div>
+      <div class="emo-propio"><span>¿No está? Pon el tuyo con el teclado de emojis 😀</span><input id="cPropio" type="text" autocomplete="off" enterkeyhint="done" value="${esc(E.propio)}" aria-label="Tu emoji"></div></div>
+      <div class="botones-hoja"><button class="boton" id="cGuardar">${nueva ? 'Crear' : 'Guardar'}</button>
+        ${nueva ? '' : '<button class="boton rojo-txt" id="cQuitar">Quitar categoría</button>'}
+        <button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      const ver = () => { $('cVer').textContent = E.emoji || '🏷️'; document.querySelectorAll('#cEmos button').forEach(b => b.classList.toggle('on', b.dataset.e === E.emoji)); };
+      if ($('cNom')) { $('cNom').oninput = e => { E.nombre = e.target.value; }; }
+      document.querySelectorAll('#cEmos button').forEach(b => b.onclick = () => { E.emoji = b.dataset.e; E.propio = ''; $('cPropio').value = ''; ver(); });
+      $('cPropio').oninput = e => { const x = primerEmoji(e.target.value); E.propio = e.target.value; if (x) { E.emoji = x; e.target.value = x; ver(); } };
+      $('hCancelar').onclick = cerrarHoja;
+      if ($('cQuitar')) $('cQuitar').onclick = () => {
+        if (D.categorias.length < 2) return aviso('Tiene que quedar al menos una');
+        if (!confirm('¿Quitar la categoría «' + nombre + '»? Lo que ya apuntaste se queda igual.')) return;
+        D.categorias = D.categorias.filter(k => k !== nombre); guardarDatos(); cerrarHoja(); aviso('Quitada'); pintarApp();
+      };
+      $('cGuardar').onclick = () => {
+        if (String(E.propio).trim() && !primerEmoji(E.propio)) return aviso('Eso no es un emoji: elige uno de la lista o usa el teclado de emojis');
+        const em = E.emoji;
+        if (nueva) {
+          const n = E.nombre.trim().replace(/\s+/g, ' ');
+          if (!n) { aviso('Escribe el nombre'); return $('cNom').focus(); }
+          const ya = D.categorias.find(k => k.toLowerCase() === n.toLowerCase());
+          if (ya) return aviso('Ya tienes «' + ya + '»');
+          const iO = D.categorias.indexOf('Otros');
+          D.categorias.splice(iO < 0 ? D.categorias.length : iO, 0, n);
+          if (em) D.catEmoji = Object.assign({}, D.catEmoji, { [n]: em });
+          guardarDatos(); cerrarHoja(); aviso('Categoría creada ' + (em || '🏷️'));
+          if (alCrear) alCrear(n); else pintarApp();
+          return;
+        }
+        D.catEmoji = Object.assign({}, D.catEmoji);
+        if (em && em !== (CAT_EMOJI[nombre] || '🏷️')) D.catEmoji[nombre] = em; else delete D.catEmoji[nombre];
+        guardarDatos(); cerrarHoja(); aviso('Guardado ' + emojiCat(nombre)); pintarApp();
+      };
+    }
+  }));
+}
+
+// El último gasto normal que apuntaste (para «↻ Repetir»): no cuenta la hucha, objetivos, deudas, repartos ni descuadres
+function ultimoGasto() {
+  let u = null;
+  D.movimientos.forEach(x => {
+    if (x.tipo !== 'gasto' || x.hucha || x.objetivo || x.deuda || x.reparto || x.destino || (x.origen && x.origen !== 'applepay') || x.cat === 'Descuadre' || !(x.importe > 0)) return;
+    if (!u || (x.ts || 0) >= (u.ts || 0)) u = x;
+  });
+  return u;
+}
+
 // Atajos: lo que más se repite (misma descripción y categoría). Si lo pagas con varias cuentas sale UNA vez, con la última que usaste.
 function listaAtajos(tipo) {
   if (tipo === 'traspaso') return [];
@@ -1653,6 +1830,11 @@ function guardarMovimiento() {
     const queda = calcular(D).hucha;
     if (imp > queda + 1e-9) { aviso('En la hucha solo te quedan ' + eur(queda)); return; }
   }
+  // ¿Hay dinero para gastar en esa cuenta? Si lo que hay es de la hucha (o no llega), se frena y se pregunta (decidido por Carles el 24/10)
+  if (gasto && !F.hucha && !F.fondosVisto) {
+    const f = fondosCuenta(cuentaApp(F.cuenta));
+    if (f && imp > f.libre + 0.004) return hojaSinFondos(r2(imp), f);
+  }
   const cat = gasto ? (F.cat || 'Otros') : '';
   const m = { id: nuevoId(), tipo: F.tipo, importe: r2(imp), desc: F.desc.trim() || (gasto ? cat : 'Ingreso extra'),
     cuenta: cuentaApp(F.cuenta), fecha: F.fecha || hoyIso(), ts: Date.now() };
@@ -1672,6 +1854,36 @@ function guardarMovimiento() {
     : m.destino === 'objetivo' ? 'Sumado a «' + (o ? o.nombre : 'tu objetivo') + '» 🎯' : m.destino === 'repartir' ? 'Repartido hasta el ' + fechaLarga(m.hasta) + ' ✓' : 'Ingreso apuntado ✓');
   F = formVacio(F.tipo);
   pintarApp();
+}
+
+// Dinero para gastar en una cuenta = lo que hay (Deberías tener) − la parte de la hucha que está ahí.
+// Si la cuenta no tiene saldo puesto, no se sabe: no se comprueba (null).
+function fondosCuenta(id) {
+  const k = D.cuentas.find(x => x.id === id), hay = k ? saldoCuenta(k) : null;
+  if (hay === null) return null;
+  const c = calcular(D), enHucha = Math.max(0, Math.min(huchaEnCuenta(id, c), Math.max(hay, 0)));
+  return { id, nombre: nombreCta(id), hay, enHucha, libre: r2(Math.max(0, hay - enHucha)), huchaTotal: Math.max(0, r2(c.hucha || 0)) };
+}
+function hojaSinFondos(imp, f) {
+  const soloHucha = f.enHucha > 0.004 && f.libre <= 0.004, puedeHucha = f.huchaTotal >= imp - 0.004;
+  const tit = soloHucha ? 'En ' + esc(f.nombre) + ' solo tienes la hucha' : 'En ' + esc(f.nombre) + ' no tienes suficiente';
+  const txt = soloHucha ? `Según Pre$u, en ${esc(f.nombre)} hay <b>${eur(f.hay)}</b> y todo es de tu 🐷 hucha, que no se toca.`
+    : f.enHucha > 0.004 ? `En ${esc(f.nombre)} hay <b>${eur(f.hay)}</b>, pero <b>${eur(f.enHucha)}</b> son de tu 🐷 hucha. Para gastar te quedan <b>${eur(f.libre)}</b> y el gasto es de <b>${eur(imp)}</b>.`
+    : `Según Pre$u, en ${esc(f.nombre)} solo hay <b>${eur(Math.max(0, f.hay))}</b> y el gasto es de <b>${eur(imp)}</b>.`;
+  abrirHoja(() => ({
+    html: `<h2>⚠️ ${tit}</h2>
+      <p class="ayuda">${txt}</p>
+      <p class="nota" style="margin:0 2px 14px">${puedeHucha ? '¿Lo pagas con la hucha? Así no se resta de lo que te queda ' + (D.periodo === 'mes' ? 'este mes' : 'esta semana') + '. ' : ''}Si Pre$u no lo tiene bien, apúntalo igual y luego cuadra con tu banco.</p>
+      <div class="botones-hoja">
+        ${puedeHucha ? '<button class="boton" id="sfHucha">🐷 Pagar con la hucha</button>' : ''}
+        <button class="boton ${puedeHucha ? 'contorno' : ''}" id="sfIgual">Apuntarlo igual</button>
+        <button class="boton sec" id="hCancelar">Cancelar</button></div>`,
+    montar() {
+      if ($('sfHucha')) $('sfHucha').onclick = () => { cerrarHoja(); F.hucha = true; guardarMovimiento(); };
+      $('sfIgual').onclick = () => { cerrarHoja(); F.fondosVisto = true; guardarMovimiento(); };
+      $('hCancelar').onclick = cerrarHoja;
+    }
+  }));
 }
 
 // ---------- Ingreso extra grande (ej: una beca de 1.200 €) ----------
@@ -2394,7 +2606,43 @@ function hojaTraspaso(m) {
 }
 
 // ---------- 📊 Resumen ----------
-let resTodo = false;   // gasto por categoría: false = este periodo, true = desde el principio
+// Gráfico redondo: al abrir Pre$u siempre empieza en esta semana (o mes). modo: 'periodo' (con flechas, off = cuántos hacia atrás) · 'ult' (8 semanas / 6 meses) · 'todo'
+let resCat = { modo: 'periodo', off: 0 }, resSel = null;
+// Colores fijos por categoría (iguales en claro y oscuro: tonos medios que se ven en los dos)
+const COLOR_CAT = { Comida: '#F59E0B', 'Súper': '#10B981', Ocio: '#8B5CF6', Transporte: '#3B82F6', Fiesta: '#EC4899', Viajes: '#06B6D4', Otros: '#94A3B8', Descuadre: '#64748B', Deudas: '#A8A29E', Objetivos: '#14B8A6' };
+const PALETA = ['#EF4444', '#F97316', '#84CC16', '#6366F1', '#D946EF', '#EAB308', '#0EA5E9', '#14B8A6', '#A16207', '#BE185D', '#4D7C0F', '#7C3AED'];
+function colorCat(k) {
+  if (COLOR_CAT[k]) return COLOR_CAT[k];
+  const usados = new Set(Object.values(COLOR_CAT)), mias = D.categorias.filter(x => !COLOR_CAT[x]);
+  const i = mias.indexOf(k);
+  if (i >= 0) return PALETA[i % PALETA.length];
+  let hsh = 0; for (const ch of k) hsh = (hsh * 31 + ch.codePointAt(0)) >>> 0;   // categoría quitada que sigue en lo apuntado
+  return PALETA[hsh % PALETA.length];
+}
+// Desde y hasta del gráfico según lo elegido
+function rangoCat(c) {
+  const P = D.periodo, act = inicioPeriodo(hoyIso(), P), primero = fechaMin();
+  if (resCat.modo === 'todo') return { ini: primero, fin: c.fin, texto: 'Desde que empezaste (' + fechaCorta(D.creado) + ')' };
+  if (resCat.modo === 'ult') {
+    let ini = act; for (let k = 1; k < (P === 'mes' ? 6 : 8); k++) ini = periodoAnterior(ini, P);
+    if (ini < primero) ini = primero;
+    return { ini, fin: c.fin, texto: textoRango(ini, c.fin).replace(/^Del/, 'Del') };
+  }
+  let ini = act; for (let k = 0; k < resCat.off; k++) ini = periodoAnterior(ini, P);
+  const fin = finPeriodo(ini, P);
+  return { ini, fin, texto: textoRango(ini, fin), primero: ini <= primero, actual: resCat.off === 0 };
+}
+// Donut en SVG: un trozo por grupo (sel = el que está marcado)
+function svgDonut(grupos, total) {
+  const R = 78, L = 2 * Math.PI * R, hueco = grupos.length > 1 ? 2.2 : 0;
+  let acc = 0;
+  const trozos = grupos.map((g, i) => {
+    const largo = g.v / total * L, d = Math.max(0.01, largo - hueco);
+    const t = `<circle class="trozo" data-i="${i}" cx="100" cy="100" r="${R}" fill="none" stroke="${g.color}" stroke-width="30" stroke-dasharray="${d.toFixed(2)} ${(L - d).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+    acc += largo; return t;
+  }).join('');
+  return `<svg class="donut" viewBox="0 0 200 200" role="img" aria-label="Gasto por categoría"><g transform="rotate(-90 100 100)">${trozos}</g></svg>`;
+}
 
 // «Deberías tener» en una cuenta: el saldo que puso + lo que ha entrado − lo que ha salido de esa cuenta desde entonces
 function saldoCuenta(c) {
@@ -2448,11 +2696,29 @@ function vistaResumen() {
 
   // Gasto por categoría (lo pagado con la hucha va aparte)
   // «Desde el principio» llega hasta el final de este periodo: lo apuntado para semanas o meses futuros aún no cuenta
-  const gastos = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && !m.objetivo && m.fecha <= c.fin && m.fecha >= (resTodo ? fechaMin() : c.ini));
+  const rc = rangoCat(c);
+  const gastos = D.movimientos.filter(m => m.tipo === 'gasto' && !m.hucha && !m.objetivo && m.fecha <= rc.fin && m.fecha >= rc.ini);
   const porCat = {};
-  gastos.forEach(m => { porCat[m.cat || 'Otros'] = (porCat[m.cat || 'Otros'] || 0) + m.importe; });
-  const cats = Object.entries(porCat).sort((x, y) => y[1] - x[1]);
-  const totalCat = cats.reduce((t, x) => t + x[1], 0), maxCat = cats.length ? cats[0][1] : 0;
+  gastos.forEach(m => { porCat[m.cat || 'Otros'] = r2((porCat[m.cat || 'Otros'] || 0) + m.importe); });
+  const cats = Object.entries(porCat).filter(x => x[1] > 0).sort((x, y) => y[1] - x[1]);
+  const totalCat = r2(cats.reduce((t, x) => t + x[1], 0));
+  const pctDe = v => totalCat > 0 ? Math.round(v / totalCat * 100) : 0;
+  // Las de menos del 5 % se juntan en «Otros» (solo si son 2 o más, para que no salgan rayitas finas)
+  const peques = cats.filter(([k, v]) => v / totalCat < 0.05 && k !== 'Otros');
+  const juntar = peques.length >= 2;
+  const grupos = [];
+  cats.forEach(([k, v]) => { if (juntar && (peques.some(x => x[0] === k) || k === 'Otros')) return; grupos.push({ k, v, color: colorCat(k), emoji: emojiCat(k), nombre: k }); });
+  if (juntar) {
+    const otros = cats.filter(([k]) => k === 'Otros' || peques.some(x => x[0] === k));
+    grupos.push({ k: '__otros', v: r2(otros.reduce((t, x) => t + x[1], 0)), color: COLOR_CAT.Otros, emoji: emojiCat('Otros'), nombre: 'Otros', sub: otros.map(x => x[0]).join(', ') });
+    grupos.sort((x, y) => y.v - x.v);
+  }
+  if (resSel !== null && !grupos[resSel]) resSel = null;
+  const frase = !cats.length ? '' : cats.length === 1 ? `Todo lo que has gastado es en <b>${emojiCat(cats[0][0])} ${esc(cats[0][0])}</b>.`
+    : `Donde más se te va el dinero: <b>${emojiCat(cats[0][0])} ${esc(cats[0][0])} (${pctDe(cats[0][1])} %)</b>. Después: <b>${emojiCat(cats[1][0])} ${esc(cats[1][0])} (${pctDe(cats[1][1])} %)</b>.`;
+  const centro = () => { const g = resSel !== null ? grupos[resSel] : null;
+    return g ? `<span class="dc-e">${g.emoji}</span><b>${eur(g.v)}</b><span>${esc(g.nombre)} · ${pctDe(g.v)} %</span>` : `<b>${eur(totalCat)}</b><span>gastado</span>`; };
+  const vacioTxt = rc.actual ? 'Aún no has apuntado gastos ' + (mes ? 'este mes.' : 'esta semana.') : resCat.modo === 'periodo' ? 'No apuntaste gastos ' + (mes ? 'ese mes.' : 'esa semana.') : 'Aún no has apuntado gastos.';
   const fila = ([ico, tit, sub, cant]) => `<div class="res-fila"><div class="ico">${ico}</div><div class="txt"><b>${tit}</b><span>${sub}</span></div><div class="cant">${cant}</div></div>`;
 
   return {
@@ -2480,27 +2746,55 @@ function vistaResumen() {
              <button class="boton contorno" id="rSaldos">Poner lo que tengo</button>`}
       </div>
 
-      <div class="tarjeta">
-        <div class="tit-tarjeta">Gasto por categoría</div>
-        ${seg('rCat', [['periodo', mes ? 'Este mes' : 'Esta semana'], ['todo', 'Desde el principio']], resTodo ? 'todo' : 'periodo')}
-        <div style="margin-top:10px">
-        ${cats.length ? cats.map(([k, v]) => `<div class="cat-fila"><div class="arriba-cat"><span>${emojiCat(k)} ${esc(k)}</span><small>${Math.round(v / totalCat * 100)} %</small><b>${eur(v)}</b></div>
-            <div class="barrita"><i style="width:${(v / maxCat * 100).toFixed(1)}%"></i></div></div>`).join('')
-          + `<div class="res-total"><span>Total</span><span>${eur(totalCat)}</span></div>`
-          : `<div class="vacio">${resTodo ? 'Aún no has apuntado gastos.' : 'Aún no has apuntado gastos ' + (mes ? 'este mes.' : 'esta semana.')}</div>`}
-        </div>
+      <div class="tarjeta" id="rCatTarj">
+        <div class="tit-tarjeta">En qué gastas</div>
+        ${seg('rCat', [['periodo', mes ? 'Mes' : 'Semana'], ['ult', mes ? '6 meses' : '8 semanas'], ['todo', 'Todo']], resCat.modo)}
+        ${resCat.modo === 'periodo' ? `<div class="nav-per cat-nav"><button id="rcAnt" aria-label="Anterior" class="${rc.primero ? 'apagado' : ''}">${FLECHA}</button>
+          <div class="centro"><b>${rc.actual ? (mes ? 'Este mes' : 'Esta semana') : resCat.off === 1 ? (mes ? 'El mes pasado' : 'La semana pasada') : 'Hace ' + resCat.off + (mes ? ' meses' : ' semanas')}</b><span>${rc.texto}</span></div>
+          <button id="rcSig" aria-label="Siguiente" class="${rc.actual ? 'apagado' : ''}">${FLECHA_DER}</button></div>`
+          : `<div class="nota cat-rango">${rc.texto}</div>`}
+        ${cats.length ? `<p class="cat-frase">${frase}</p>
+          <div class="donut-caja">${svgDonut(grupos, totalCat)}<div class="donut-centro" id="rcCentro">${centro()}</div></div>
+          <ol class="cat-lista" id="rcLista">${grupos.map((g, i) => `<li data-i="${i}" class="${resSel === i ? 'on' : ''}"><span class="num">${i + 1}</span><i style="background:${g.color}"></i>
+            <span class="nom">${g.emoji} ${esc(g.nombre)}${g.sub ? `<small>${esc(g.sub)}</small>` : ''}</span><small class="pct">${pctDe(g.v)} %</small><b>${eur(g.v)}</b></li>`).join('')}</ol>
+          <div class="res-total"><span>Total</span><span>${eur(totalCat)}</span></div>`
+          : `<div class="vacio">${vacioTxt}</div>`}
       </div>`,
     montar() {
       if ($('rSaldos')) $('rSaldos').onclick = () => hojaCuadrar();
       if ($('rCuadrar')) $('rCuadrar').onclick = () => hojaCuadrar();
       if ($('rObjNuevo')) $('rObjNuevo').onclick = () => hojaObjetivo(null, ctxApp(null));
+      if ($('rColchon')) $('rColchon').onclick = () => hojaObjetivo(null, Object.assign(ctxApp(null), { colchon: true }));
       montarObjetivos($('rObjetivos'));
       if ($('rCuadraNo')) $('rCuadraNo').onclick = () => hojaCuadrar();
       if ($('rCuadraSi')) $('rCuadraSi').onclick = () => { D.cuadrado = hoyIso(); guardarDatos(); aviso('Perfecto, todo cuadra ✓'); pintarApp(); };
-      segmento('rCat', v => { resTodo = v === 'todo'; pintarApp(); });
+      segmento('rCat', v => { if (v === resCat.modo) return; resCat = { modo: v, off: 0 }; resSel = null; repintarCat(); });
+      if ($('rcAnt')) $('rcAnt').onclick = () => { if (rc.primero) return; resCat.off++; resSel = null; repintarCat(); };
+      if ($('rcSig')) $('rcSig').onclick = () => { if (rc.actual) return; resCat.off--; resSel = null; repintarCat(); };
+      // Tocar un trozo (o una fila de la lista): se resalta y sale en el centro; otra vez, se quita
+      const marcar = i => {
+        resSel = resSel === i ? null : i;
+        document.querySelectorAll('#rCatTarj .trozo').forEach(t => t.classList.toggle('apagado', resSel !== null && +t.dataset.i !== resSel));
+        document.querySelectorAll('#rCatTarj .trozo').forEach(t => t.classList.toggle('on', +t.dataset.i === resSel));
+        document.querySelectorAll('#rcLista li').forEach(li => li.classList.toggle('on', +li.dataset.i === resSel));
+        if ($('rcCentro')) $('rcCentro').innerHTML = centro();
+      };
+      document.querySelectorAll('#rCatTarj .trozo').forEach(t => t.onclick = () => marcar(+t.dataset.i));
+      document.querySelectorAll('#rcLista li').forEach(li => li.onclick = () => marcar(+li.dataset.i));
+      if ($('rcCentro')) $('rcCentro').onclick = () => { if (resSel !== null) marcar(resSel); };
+      if (resSel !== null) { const i = resSel; resSel = null; marcar(i); }
     }
   };
 }
+
+// Al volver a Pre$u tras un rato fuera (como abrirla de nuevo), el gráfico vuelve a esta semana
+let tFuera = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { tFuera = Date.now(); return; }
+  if (tFuera && Date.now() - tFuera > 5 * 60e3 && (resCat.modo !== 'periodo' || resCat.off)) { resCat = { modo: 'periodo', off: 0 }; resSel = null; if (D && vista === 'resumen' && !document.querySelector('.hoja.ver')) pintarApp(); }
+});
+// Cambiar el periodo del gráfico sin que la pantalla salte arriba
+function repintarCat() { const y = window.scrollY; pintarApp(); window.scrollTo(0, y); }
 
 // La semana (o mes) anterior, si ya usabas Pre$u entonces
 function periodoPasado() {
@@ -2603,7 +2897,7 @@ function huchaEnCuenta(id, c) {
 // - Cuenta sin saldo puesto: se guarda como punto de partida (no cambia el presupuesto).
 // - Cuenta con saldo: si lo real no coincide con lo que dice Pre$u, la diferencia se apunta como «⚖️ Descuadre» hoy
 //   (falta dinero → gasto; sobra → ingreso extra), así cambia lo que te queda para gastar. Antes se pide confirmar.
-const txtSaldo = n => String(r2(n)).replace('.', ',');
+const txtSaldo = n => txtNum(n);
 function hojaCuadrar(opts) {
   opts = opts || {};
   const mes = D.periodo === 'mes', h = hoyIso(), P = D.periodo, prev = periodoPasado();
@@ -3233,9 +3527,54 @@ const DIAS_AVISO_COPIA = 14;
 const esMovil = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
 const diasDesde = f => Math.round((aUTC(hoyIso()) - aUTC(f)) / 864e5);
 function textoUltimaCopia() {
-  if (!D.ultimaCopia) return 'Aún no has hecho ninguna';
+  if (!D.ultimaCopia) return 'Aún no has hecho ninguna copia';
   const n = diasDesde(D.ultimaCopia);
-  return 'Última copia: ' + (n <= 0 ? 'hoy' : n === 1 ? 'ayer' : 'hace ' + n + ' días');
+  return 'Tu última copia es ' + (n <= 0 ? 'de hoy' : n === 1 ? 'de ayer' : 'de hace ' + n + ' días');
+}
+// ¿La copia es vieja? (ninguna, o de hace 2 semanas o más): en Ajustes sale en rojo
+const copiaVieja = () => !D.ultimaCopia || diasDesde(D.ultimaCopia) >= DIAS_AVISO_COPIA;
+
+// ---------- 📊 Exportar a Excel (CSV) ----------
+// Todo lo que ha pasado desde que empezaste: lo que apuntaste + los gastos fijos + los ingresos fijos que te llegaron.
+// Separado por «;» y con coma decimal, que es como lo abre Excel en España.
+function textoExcel() {
+  const h = hoyIso(), filas = [];
+  const cta = id => nombreCta(cuentaApp(id)) || '';
+  D.movimientos.forEach(m => {
+    const tipo = m.tipo === 'traspaso' ? 'Traspaso' : m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto';
+    const nota = m.hucha ? 'Pagado con la hucha' : m.objetivo ? 'De un objetivo' : m.destino === 'hucha' ? 'A la hucha' : m.destino === 'objetivo' ? 'A un objetivo'
+      : m.destino === 'repartir' ? 'Repartido hasta el ' + m.hasta : m.cat === 'Descuadre' ? 'Al cuadrar con el banco' : m.origen === 'applepay' ? 'Apple Pay' : '';
+    filas.push([m.fecha, tipo, m.tipo === 'gasto' ? -m.importe : m.importe, m.desc || '', m.cat || '', cta(m.cuenta), m.tipo === 'traspaso' ? cta(m.a) : '', nota]);
+  });
+  D.fijos.forEach(it => fechasDe(it, D.creado, h).forEach(f => {
+    if (yaEnSaldo(D, f)) return;   // lo del mismo día que empezaste ya estaba en tu saldo
+    const x = D.cambios[clave(it, f)]; if (x && x.no) return;
+    filas.push([f, 'Gasto fijo', -(x ? x.importe : it.importe), it.nombre, '', cta(it.cuenta), '', x ? 'Cambiado solo esa vez' : '']);
+  }));
+  D.ingresos.forEach(it => fechasDe(it, D.creado, h).forEach(f => {
+    const x = D.cambios[clave(it, f)]; if (!x || x.no) return;
+    filas.push([f, 'Ingreso fijo', x.importe, it.nombre, '', cta(it.cuenta), '', x.importe !== it.importe ? 'Otra cantidad' : '']);
+  }));
+  filas.sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  const celda = v => { if (typeof v === 'number') return String(r2(v)).replace('.', ',');
+    v = String(v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const fecha = f => f.slice(8, 10) + '/' + f.slice(5, 7) + '/' + f.slice(0, 4);
+  const cab = ['Fecha', 'Tipo', 'Importe (€)', 'Descripción', 'Categoría', 'Cuenta', 'A la cuenta', 'Nota'];
+  return '\ufeff' + [cab.join(';'), ...filas.map(r => [fecha(r[0]), ...r.slice(1)].map(celda).join(';'))].join('\r\n');
+}
+async function exportarExcel() {
+  const nombre = 'Presu-movimientos-' + hoyIso() + '.csv', texto = textoExcel();
+  try {
+    const archivo = new File([texto], nombre, { type: 'text/csv' });
+    if (esMovil() && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      await navigator.share({ files: [archivo], title: 'Movimientos de Pre$u' }); return aviso('Listo ✓');
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try {
+    const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000); aviso('Descargado ✓');
+  } catch (e) { aviso('No se ha podido descargar'); }
 }
 // ¿Toca recordar la copia? (cada 2 semanas; ✕ lo calla otras 2 semanas)
 function tocaCopia() {
@@ -3311,7 +3650,7 @@ function hojaRecuperar(c, d) {
 }
 
 // ---------- 🎯 Objetivos: pantallas ----------
-const OBJ_RAPIDOS = [['✈️', 'Viaje'], ['📱', 'Móvil'], ['🚗', 'Coche'], ['🪪', 'Carnet de conducir'], ['💻', 'Ordenador'], ['🎮', 'Consola'], ['🎁', 'Regalo'], ['🛟', 'Imprevistos'], ['🎯', 'Otro']];
+const OBJ_RAPIDOS = [['✈️', 'Viaje'], ['📱', 'Móvil'], ['🚗', 'Coche'], ['🪪', 'Carnet de conducir'], ['💻', 'Ordenador'], ['🎮', 'Consola'], ['🎁', 'Regalo'], ['🛟', 'Colchón'], ['🎯', 'Otro']];
 const objetivosVivos = () => (D.objetivos || []).filter(o => !o.cerradoEn);
 const unidad = P => P === 'mes' ? 'al mes' : 'a la semana';
 // Lo que llevabas en un objetivo antes de este periodo (para que un cambio empiece aquí sin tocar lo de antes)
@@ -3355,7 +3694,8 @@ function tarjetaObjetivos(c) {
     <div class="cab-tarjeta"><div class="tit-tarjeta">Tus objetivos</div>${l.length ? '<button class="enlace" id="rObjNuevo">＋ Nuevo</button>' : ''}</div>
     ${l.length ? l.map(o => filaObjetivo(o, c)).join('')
       : `<p class="nota" style="margin:0 0 12px">¿Ahorras para algo? Un viaje, un móvil, el carnet… Ponte un objetivo y Pre$u aparta un poco ${D.periodo === 'mes' ? 'cada mes' : 'cada semana'}.</p>
-         <button class="boton contorno" id="rObjNuevo">🎯 Crear un objetivo</button>`}
+         <button class="boton contorno" id="rObjNuevo">🎯 Crear un objetivo</button>
+         <button class="boton contorno" id="rColchon" style="margin-top:10px">🛟 Crear un colchón</button>`}
   </div>`;
 }
 function montarObjetivos(raiz) {
@@ -3402,13 +3742,15 @@ function guardarObjetivoApp(o, datos) {
   D.objetivos = D.objetivos || [];
   if (!o) {
     o = Object.assign({ id: nuevoId(), creado: h }, datos);
+    if (!o.colchon) delete o.colchon;
     quitarDeHucha(o.inicial);
     o.planes = [planObjetivo(o, act, o.inicial || 0, P)];
     D.objetivos.push(o);
-    guardarDatos(); cerrarHoja(); aviso('Objetivo creado 🎯'); pintarApp(); return;
+    guardarDatos(); cerrarHoja(); aviso(o.colchon ? 'Colchón creado 🛟' : 'Objetivo creado 🎯'); pintarApp(); return;
   }
   const base = accAntes(o, act);
   Object.assign(o, { nombre: datos.nombre, emoji: datos.emoji, meta: datos.meta, modo: datos.modo, hasta: datos.hasta, cuota: datos.cuota });
+  if (datos.colchon) o.colchon = true; else delete o.colchon;
   o.planes = (o.planes || []).filter(x => x.desde < act).concat([planObjetivo(o, act, base, P)]);
   guardarDatos(); aviso('Cambiado desde ' + (P === 'mes' ? 'este mes' : 'esta semana')); pintarApp(); hojaVerObjetivo(o);
 }
@@ -3418,9 +3760,14 @@ function hojaObjetivo(o, ctx) {
   const F = o ? { emoji: o.emoji, nombre: o.nombre, meta: o.meta ? fmtImporte(o.meta) : '', modo: o.modo, hasta: o.hasta || '', cuota: o.cuota ? fmtImporte(o.cuota) : '', inicial: ctx.borrador && o.inicial ? fmtImporte(o.inicial) : '' }
     : { emoji: '', nombre: '', meta: '', modo: 'fecha', hasta: '', cuota: '', inicial: '' };
   F.otra = !!F.hasta && !rapidas.some(([, f]) => f === F.hasta);
+  // 🛟 Colchón: un objetivo especial que se aparta cada semana (o mes), hasta una cantidad o sin final (decidido por Carles el 24/10)
+  F.colchon = o ? !!o.colchon : !!ctx.colchon;
+  F.sinFin = !!(o && o.colchon && !o.meta);
+  if (F.colchon && !o) { F.emoji = '🛟'; F.nombre = 'Colchón'; F.modo = 'semanal'; }
   const n0 = t => { const n = num(t); return n > 0 ? r2(n) : 0; };
+  const metaF = () => F.colchon && F.sinFin ? 0 : n0(F.meta);
   function nota() {
-    const meta = n0(F.meta), ini = esNuevo ? n0(F.inicial) : ctx.base, falta = r2(meta - ini);
+    const meta = metaF(), ini = esNuevo ? n0(F.inicial) : ctx.base, falta = r2(meta - ini);
     if (F.modo === 'fecha') {
       if (!meta) return '¿Cuánto necesitas?';
       if (!(F.hasta > h)) return 'Elige para cuándo lo quieres.';
@@ -3430,24 +3777,29 @@ function hojaObjetivo(o, ctx) {
     }
     const cuota = n0(F.cuota);
     if (!cuota) return `¿Cuánto quieres apartar ${mes ? 'cada mes' : 'cada semana'}?`;
-    if (!meta) return `Apartarás <b>${eur(cuota)}</b> ${unidad(P)}, sin límite.`;
+    if (!meta) return F.colchon ? `Apartarás <b>${eur(cuota)}</b> ${unidad(P)} y tu colchón irá creciendo, sin final. Lo puedes parar cuando quieras.` : `Apartarás <b>${eur(cuota)}</b> ${unidad(P)}, sin límite.`;
     if (falta <= 0) return '¡Ya lo tienes! 🎉';
     const n = Math.ceil(falta / cuota - 1e-9);
     let p = act; for (let k = 1; k < n; k++) p = siguientePeriodo(p, P);
     return `Lo tendrás en ${n === 1 ? (mes ? '1 mes' : '1 semana') : n + (mes ? ' meses' : ' semanas')}, hacia el ${fechaLarga(finPeriodo(p, P))}.`;
   }
   abrirHoja(() => ({
-    html: `<h2>${!esNuevo ? 'Cambiar objetivo' : o ? '🎯 Tu objetivo' : '🎯 Nuevo objetivo'}</h2>
-      ${!esNuevo ? `<p class="ayuda">Llevas ${eur(ctx.lleva)}. Lo que cambies cuenta desde ${mes ? 'este mes' : 'esta semana'}.</p>` : ''}
+    html: `<h2>${F.colchon ? (!esNuevo ? 'Cambiar tu colchón' : o ? '🛟 Tu colchón' : '🛟 Nuevo colchón') : !esNuevo ? 'Cambiar objetivo' : o ? '🎯 Tu objetivo' : '🎯 Nuevo objetivo'}</h2>
+      ${!esNuevo ? `<p class="ayuda">Llevas ${eur(ctx.lleva)}. Lo que cambies cuenta desde ${mes ? 'este mes' : 'esta semana'}.</p>`
+        : F.colchon ? `<p class="ayuda">Dinero para imprevistos: si se te rompe el móvil o un mes va mal. Pre$u aparta un poco ${mes ? 'cada mes' : 'cada semana'}.</p>` : ''}
       <div class="etq">¿Para qué ahorras?</div>
-      <div class="chips" id="oRap">${OBJ_RAPIDOS.map(([e, t]) => `<button class="chip ${F.emoji === e && (t === 'Otro' || F.nombre === t) ? 'on' : ''}" data-e="${e}" data-t="${t}">${e} ${t}</button>`).join('')}</div>
+      <div class="chips" id="oRap">${OBJ_RAPIDOS.map(([e, t]) => `<button class="chip ${(t === 'Colchón' ? F.colchon : !F.colchon && F.emoji === e && (t === 'Otro' || F.nombre === t)) ? 'on' : ''}" data-e="${e}" data-t="${t}">${e} ${t}</button>`).join('')}</div>
       <div class="tarjeta" style="margin-top:12px">
         <input id="oNom" class="texto campo" type="text" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="Nombre (ej: Viaje a Italia)" value="${esc(F.nombre)}" style="margin:0 0 4px">
-        <div class="etq" style="text-align:center">¿Cuánto necesitas?${F.modo === 'semanal' ? ' <small>(si no lo sabes, déjalo vacío)</small>' : ''}</div>
-        <input id="oMeta" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.meta)}">
+        ${F.colchon ? `<div class="etq">¿Hasta dónde?</div>
+        ${seg('oFin', [['meta', '🎯 Una cantidad'], ['sinfin', '♾️ Sin final']], F.sinFin ? 'sinfin' : 'meta')}
+        ${F.sinFin ? '' : `<div class="etq" style="text-align:center">¿Cuánto quieres tener?</div>
+        <input id="oMeta" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.meta)}">`}`
+        : `<div class="etq" style="text-align:center">¿Cuánto necesitas?${F.modo === 'semanal' ? ' <small>(si no lo sabes, déjalo vacío)</small>' : ''}</div>
+        <input id="oMeta" class="importe ah-peq" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.meta)}">`}
       </div>
-      <div class="etq">¿Cómo quieres ahorrar?</div>
-      ${seg('oModo', [['fecha', '📅 Para una fecha'], ['semanal', mes ? '🔁 Cada mes' : '🔁 Cada semana']], F.modo)}
+      ${F.colchon ? '' : `<div class="etq">¿Cómo quieres ahorrar?</div>
+      ${seg('oModo', [['fecha', '📅 Para una fecha'], ['semanal', mes ? '🔁 Cada mes' : '🔁 Cada semana']], F.modo)}`}
       <div class="tarjeta" style="margin-top:10px">
         ${F.modo === 'fecha' ? `<div class="etq" style="margin-top:0">¿Para cuándo lo quieres?</div>
           <div class="chips" id="oFechas">${rapidas.map(([t, f]) => `<button class="chip ${!F.otra && F.hasta === f ? 'on' : ''}" data-f="${f}">${t}</button>`).join('')}
@@ -3460,18 +3812,23 @@ function hojaObjetivo(o, ctx) {
       ${esNuevo && ctx.huchaDisp > 0 ? `<div class="etq">🐷 ¿Pones algo de tu hucha?</div>
         <div class="tarjeta"><div class="saldo-fila" style="border:0;padding:0"><span>De tu hucha<small>Tienes ${eur(ctx.huchaDisp)}. Lo que pongas pasa al objetivo y así apartas menos.</small></span>
           <input id="oIni" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0 €" value="${esc(F.inicial)}"></div></div>` : ''}
-      <div class="botones-hoja"><button class="boton" id="hGuardar">${!esNuevo ? 'Guardar cambios' : o ? 'Guardar' : 'Crear objetivo'}</button><button class="boton sec" id="oAtras">${ctx.volver ? '‹ Volver' : 'Cancelar'}</button></div>`,
+      <div class="botones-hoja"><button class="boton" id="hGuardar">${!esNuevo ? 'Guardar cambios' : o ? 'Guardar' : F.colchon ? 'Crear colchón' : 'Crear objetivo'}</button><button class="boton sec" id="oAtras">${ctx.volver ? '‹ Volver' : 'Cancelar'}</button></div>`,
     montar() {
       const refrescar = () => { if ($('oNota')) $('oNota').innerHTML = nota(); };
       $('oRap').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+        // El colchón solo se elige al crear (un objetivo que ya existe no cambia de tipo)
+        if (!esNuevo && (b.dataset.t === 'Colchón') !== F.colchon) return aviso(F.colchon ? 'Es tu colchón: para otro objetivo, crea uno nuevo' : 'Para un colchón, crea uno nuevo');
         F.emoji = b.dataset.e; if (b.dataset.t !== 'Otro') F.nombre = b.dataset.t; else if (OBJ_RAPIDOS.some(([, t]) => t === F.nombre)) F.nombre = '';
+        F.colchon = b.dataset.t === 'Colchón';
+        if (F.colchon) F.modo = 'semanal';
         pintarHoja(); if (b.dataset.t === 'Otro') $('oNom').focus();
       });
       $('oNom').oninput = e => { F.nombre = e.target.value; };
-      $('oMeta').oninput = e => { F.meta = e.target.value; refrescar(); };
+      if ($('oMeta')) $('oMeta').oninput = e => { F.meta = e.target.value; refrescar(); };
+      if ($('oFin')) segmento('oFin', v => { const sf = v === 'sinfin'; if (sf !== F.sinFin) { F.sinFin = sf; pintarHoja(); } });
       if ($('oCuota')) $('oCuota').oninput = e => { F.cuota = e.target.value; refrescar(); };
       if ($('oIni')) $('oIni').oninput = e => { F.inicial = e.target.value; refrescar(); };
-      segmento('oModo', v => { if (v !== F.modo) { F.modo = v; pintarHoja(); } });
+      if ($('oModo')) segmento('oModo', v => { if (v !== F.modo) { F.modo = v; pintarHoja(); } });
       if ($('oFechas')) $('oFechas').querySelectorAll('.chip').forEach(b => b.onclick = () => {
         if (b.dataset.f === 'otra') { F.otra = true; pintarHoja(); if ($('oHasta')) $('oHasta').focus(); return; }
         F.otra = false; F.hasta = b.dataset.f; pintarHoja();
@@ -3479,9 +3836,10 @@ function hojaObjetivo(o, ctx) {
       if ($('oHasta')) $('oHasta').onchange = e => { F.hasta = e.target.value; refrescar(); };
       $('oAtras').onclick = ctx.volver || cerrarHoja;
       $('hGuardar').onclick = () => {
-        const nombre = F.nombre.trim(), meta = n0(F.meta), cuota = n0(F.cuota), inicial = esNuevo ? n0(F.inicial) : 0;
+        const nombre = F.nombre.trim(), meta = metaF(), cuota = n0(F.cuota), inicial = esNuevo ? n0(F.inicial) : 0;
         if (!nombre) { aviso('Ponle un nombre'); return $('oNom').focus(); }
-        if (String(F.meta).trim() && isNaN(num(F.meta))) return aviso('Revisa la cantidad');
+        if (!(F.colchon && F.sinFin) && String(F.meta).trim() && isNaN(num(F.meta))) return aviso('Revisa la cantidad');
+        if (F.colchon && !F.sinFin && !meta) { aviso('Escribe cuánto quieres tener (o elige «Sin final»)'); return $('oMeta') && $('oMeta').focus(); }
         if (F.modo === 'fecha') {
           if (!meta) { aviso('Escribe cuánto necesitas'); return $('oMeta').focus(); }
           if (!(F.hasta > h)) return aviso('Elige para cuándo lo quieres');
@@ -3489,7 +3847,10 @@ function hojaObjetivo(o, ctx) {
         if (inicial > ctx.huchaDisp + 0.004) return aviso('En la hucha solo tienes ' + eur(ctx.huchaDisp));
         if (meta && inicial > meta) return aviso('Pones más de lo que necesitas');
         const emoji = F.emoji || (OBJ_RAPIDOS.find(([, t]) => t === nombre) || ['🎯'])[0];
-        ctx.guardar({ nombre, emoji, meta: meta || null, modo: F.modo, hasta: F.modo === 'fecha' ? F.hasta : '', cuota: F.modo === 'semanal' ? cuota : null, inicial });
+        const datos = { nombre, emoji, meta: meta || null, modo: F.modo, hasta: F.modo === 'fecha' ? F.hasta : '', cuota: F.modo === 'semanal' ? cuota : null, inicial };
+        if (F.colchon) Object.assign(datos, { colchon: true, emoji: '🛟', modo: 'semanal', hasta: '', cuota });
+        else datos.colchon = false;
+        ctx.guardar(datos);
       };
       if (!o && !F.nombre) setTimeout(() => {}, 0);
     }
@@ -3662,9 +4023,11 @@ function vistaAjustes() {
         <div class="sec-tit">Copia de seguridad</div>
         <div class="tarjeta aj-rapido">
           <p class="nota" style="margin:0 2px 12px">Tus datos solo están en este móvil. Si borras la app o cambias de móvil, se pierden. Haz una copia y guárdala en Archivos (iCloud Drive) o envíatela.</p>
+          <div class="ult-copia ${copiaVieja() ? 'vieja' : ''}">${copiaVieja() ? '⚠️' : '✓'} ${textoUltimaCopia()}</div>
           <button class="boton" id="jCopia">💾 Hacer una copia</button>
-          <div class="nota" style="text-align:center;margin-top:8px">${textoUltimaCopia()}</div>
           <button class="boton contorno" id="jRecuperar" style="margin-top:12px">📂 Recuperar una copia</button>
+          <button class="boton contorno" id="jExcel" style="margin-top:12px">📊 Descargar en Excel</button>
+          <p class="nota" style="margin:8px 2px 0;text-align:center">Todos tus movimientos en una tabla para verlos en Excel o Numbers. No sirve para recuperar tus datos: para eso, la copia.</p>
         </div>
         <div class="sec-tit">Zona peligrosa</div>
         <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
@@ -3710,9 +4073,9 @@ function vistaAjustes() {
         <div class="txt"><b>${esc(k.nombre)}</b>${k.saldo != null ? `<span>Saldo puesto el ${fechaCorta(k.saldoFecha)}</span>` : ''}</div><div class="ir">›</div></div>`).join('')}
         <button class="anadir" id="jAddCta">＋ Añadir cuenta</button></div>
       ${nota('Lo que tienes en cada cuenta se pone en Resumen → Deberías tener.')}`,
-    categorias: `<div class="tarjeta"><div class="chips" id="jCats">${D.categorias.map(k => `<button class="chip" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}<span class="x">✕</span></button>`).join('')}</div>
-        <div class="fila-anadir"><input id="jNuevaCat" class="texto campo" type="text" maxlength="20" placeholder="Nueva categoría" enterkeyhint="done"><button class="mini-b" id="jAddCat">Añadir</button></div></div>
-      ${nota('Toca una categoría para quitarla. Lo que ya apuntaste se queda igual.')}`,
+    categorias: `<div class="tarjeta"><div class="chips" id="jCats">${D.categorias.map(k => `<button class="chip" data-v="${esc(k)}">${emojiCat(k)} ${esc(k)}</button>`).join('')}</div>
+        <button class="anadir" id="jAddCat" style="margin-top:12px">＋ Añadir categoría</button></div>
+      ${nota('Toca una categoría para cambiarle el emoji o quitarla. Lo que ya apuntaste se queda igual.')}`,
     applepay: `<div class="tarjeta">
         <div class="ajuste-fila"><span>📲 Traer pagos de Apple Pay</span><button class="interruptor ${D.applePay ? 'on' : ''}" id="jApplePay" aria-label="Traer pagos de Apple Pay"></button></div>
         ${D.applePay ? '<button class="anadir" id="jGuiaAP" style="margin-top:10px">¿Cómo se configura en el iPhone?</button>' : ''}
@@ -3738,6 +4101,7 @@ function vistaAjustes() {
       si('jDiaMes', el => el.onclick = hojaDiaMes);
       si('jInicial', el => el.onclick = hojaInicial);
       si('jCopia', el => el.onclick = hacerCopia);
+      si('jExcel', el => el.onclick = exportarExcel);
       si('jRecuperar', el => el.onclick = elegirCopia);
       si('jPeriodo', () => segmento('jPeriodo', v => { if (v !== D.periodo) cambiarPeriodo(v); }));
       si('jSobra', () => segmento('jSobra', v => {
@@ -3755,20 +4119,8 @@ function vistaAjustes() {
       montarObjetivos($('jObjetivos') || document.createElement('div'));
       document.querySelectorAll('#jCuentas .mov').forEach(el => el.onclick = () => hojaCuenta(D.cuentas.find(k => k.id === el.dataset.id)));
       si('jAddCta', el => el.onclick = () => hojaCuenta(null));
-      document.querySelectorAll('#jCats .chip').forEach(b => b.onclick = () => {
-        if (D.categorias.length < 2) return aviso('Tiene que quedar al menos una');
-        if (!confirm('¿Quitar la categoría «' + b.dataset.v + '»? Lo que ya apuntaste se queda igual.')) return;
-        D.categorias = D.categorias.filter(k => k !== b.dataset.v); guardarDatos(); pintarApp();
-      });
-      const addCat = () => {
-        const n = $('jNuevaCat').value.trim();
-        if (!n) return aviso('Escribe el nombre');
-        if (D.categorias.some(k => k.toLowerCase() === n.toLowerCase())) return aviso('Ya la tienes');
-        D.categorias.splice(Math.max(0, D.categorias.indexOf('Otros') < 0 ? D.categorias.length : D.categorias.indexOf('Otros')), 0, n);
-        guardarDatos(); aviso('Añadida ✓'); pintarApp();
-      };
-      si('jAddCat', el => el.onclick = addCat);
-      si('jNuevaCat', el => el.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCat(); } });
+      document.querySelectorAll('#jCats .chip').forEach(b => b.onclick = () => hojaCategoria(b.dataset.v));
+      si('jAddCat', el => el.onclick = () => hojaCategoria(null));
       si('jApplePay', el => el.onclick = () => { D.applePay = !D.applePay; guardarDatos(); pintarApp(); if (D.applePay) hojaGuiaApplePay(); });
       si('jGuiaAP', el => el.onclick = hojaGuiaApplePay);
   }
