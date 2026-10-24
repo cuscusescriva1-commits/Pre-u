@@ -1542,6 +1542,7 @@ function pintarInicio(recien) {
   if (D.diaMes == null) { D.diaMes = 1; if (D.inicial === undefined) D.inicial = null; guardarDatos(); }
   fijarDiaMes(D);
   arreglarObjetivosBorrados();
+  arreglarUsosHuerfanos();
   // Versión 3: se AÑADEN las categorías nuevas (antes de «Otros») sin quitar ni mover las que ya tienes
   if (D.categorias && D.catVersion === 2) {
     const iO = D.categorias.indexOf('Otros'), faltan = CAT_NUEVAS_V3.filter(k => !D.categorias.some(x => x.toLowerCase() === k.toLowerCase()));
@@ -2485,8 +2486,11 @@ function vistaMovimientos() {
 function borrarMovimiento(id, despues) {
   const m = D.movimientos.find(x => x.id === id);
   const x = m && m.deuda ? D.deudas.find(d => d.id === m.deuda) : null;   // pago de una deuda: al borrarlo, la deuda vuelve a estar pendiente
-  if (!m || !confirm('¿Borrar «' + m.desc + '» (' + eur(m.importe) + ')?' + (x ? '\nLa deuda con ' + x.persona + ' volverá a estar pendiente.' : ''))) return;
+  const ob = m && m.objetivo ? (D.objetivos || []).find(o => o.id === m.objetivo && o.cerradoEn) : null;   // gasto de «Usar el dinero»
+  if (!m || !confirm('¿Borrar «' + m.desc + '» (' + eur(m.importe) + ')?' + (x ? '\nLa deuda con ' + x.persona + ' volverá a estar pendiente.' : '')
+    + (ob ? '\n«' + ob.nombre + '» volverá a estar como antes de usar el dinero.' : ''))) return;
   if (x) x.pagos = x.pagos.filter(p => p.mov !== m.id);
+  if (ob) reabrirObjetivo(ob);
   D.movimientos = D.movimientos.filter(x => x !== m);
   guardarDatos(); if (despues) despues();
   aviso('Borrado'); pintarApp();
@@ -4200,6 +4204,36 @@ function hojaVerObjetivo(o) {
     };
   });
 }
+// Deshacer «Usar el dinero» (al borrar su gasto): lo que sobró vuelve de donde se mandó y el objetivo sigue como antes
+function reabrirObjetivo(o) {
+  const f = o.final || {}, resto = f.resto || 0;
+  if (resto > 0) {
+    if (f.destino === 'hucha') quitarDeHucha(resto);
+    else { const m = movDeObjetivo(o); if (m) D.movimientos.splice(D.movimientos.indexOf(m), 1); }
+  }
+  delete o.cerrado; delete o.cerradoEn; delete o.final; delete o.borrado;
+}
+const movDeObjetivo = o => D.movimientos.find(x => x.origen === 'objetivo' && x.tipo === 'ingreso' && x.fecha === o.cerradoEn && x.desc === 'De tu objetivo «' + o.nombre + '»');
+// Arreglo (24/10, 21:10): objetivos cerrados con «Usar el dinero» cuyo gasto se borró después (la versión antigua no deshacía nada:
+// el dinero desaparecía). Se toman como borrados ese día: lo de esa semana vuelve a esa semana y lo de antes, a la hucha.
+function arreglarUsosHuerfanos() {
+  if (D.arregloUsos) return;
+  const P = D.periodo;
+  (D.objetivos || []).forEach(o => {
+    if (o.borrado || !o.cerradoEn || !o.final || !(o.final.gastado > 0)) return;
+    if (D.movimientos.some(x => x.objetivo === o.id)) return;   // el gasto sigue ahí: está bien
+    const sem = inicioPeriodo(o.cerradoEn, P);
+    if (o.cerrado !== siguientePeriodo(sem, P)) return;
+    const accIni = (calcular(D, hoyIso(), sem).objAccIni || {})[o.id];
+    const v = aporteObjetivo(o, sem, P, accIni == null ? o.inicial || 0 : accIni);
+    const deAntes = r2(Math.max(0, o.final.gastado - v));
+    o.cerrado = sem; o.borrado = true;
+    if (deAntes > 0) volverAHucha(deAntes, D.ultimaCuenta);
+    o.final = Object.assign({}, o.final, { gastado: 0, resto: r2((o.final.resto || 0) + deAntes), destino: deAntes > 0 ? 'hucha' : o.final.destino, arreglo: 'usoBorrado' });
+  });
+  D.arregloUsos = true;
+  guardarDatos();
+}
 // Arreglo (24/10): antes, al borrar un objetivo, lo de esa semana se seguía restando y se mandaba a la hucha (o a «para gastar»).
 // Se corrige una sola vez en los objetivos ya borrados: esa semana deja de apartarse y se quita lo mismo de donde se mandó (el total no cambia).
 function arreglarObjetivosBorrados() {
@@ -4221,7 +4255,7 @@ function arreglarObjetivosBorrados() {
       if (a && a.modo === 'hucha' && Math.abs(a.importe) < 0.005 && !Object.keys(a.porCuenta || {}).length && !D.movimientos.some(x => x.hucha || x.destino === 'hucha')) D.ahorro = null;
     }
     else {
-      const m = D.movimientos.find(x => x.origen === 'objetivo' && x.tipo === 'ingreso' && x.fecha === o.cerradoEn && x.desc === 'De tu objetivo «' + o.nombre + '»');
+      const m = movDeObjetivo(o);
       if (m) { m.importe = r2(m.importe - v); if (!(m.importe > 0)) D.movimientos.splice(D.movimientos.indexOf(m), 1); }
     }
   });
