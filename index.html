@@ -1265,6 +1265,10 @@ const hayIngresoMensual = d => d.ingresos.some(x => x.frec === 'mes');
 // El día que cobras: el del ingreso mensual más grande (si no hay, el 1)
 const diaDeCobro = ingresos => { const m = ingresos.filter(x => x.frec === 'mes' && x.importe > 0).sort((a, b) => b.importe - a.importe || a.dia - b.dia)[0]; return m ? m.dia : 1; };
 // Días en los que toca algo fijo entre dos fechas (si el mes es más corto, el último día)
+// La paga semanal que llega el DOMINGO es para la semana que empieza al día siguiente (decidido por Carles, 25/10):
+// cuenta en esa semana, aunque se pregunta «¿Te ha llegado?» el mismo domingo y entra en el banco ese día.
+const paraSiguiente = it => it.frec === 'semana' && it.dia === 7;
+const fechasIngreso = (it, desde, hasta) => paraSiguiente(it) ? fechasDe(it, masDias(desde, -1), masDias(hasta, -1)) : fechasDe(it, desde, hasta);
 function fechasDe(item, desde, hasta) {
   // Si se cambió en Ajustes, cada versión vale desde/hasta una fecha (lo de antes no se toca)
   if (item.desde && item.desde > desde) desde = item.desde;
@@ -1385,6 +1389,8 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
   // Gasto fijo: se resta solo (salvo que esa vez se haya cambiado o ya estuviera pagado al empezar)
   const fij = (it, f) => { const c = d.cambios[clave(it, f)]; if (c) return c.no ? 0 : c.importe; return yaEnSaldo(d, f) ? 0 : it.importe; };
   const suma = (lista, fn, desde, hasta) => lista.reduce((a, it) => a + fechasDe(it, desde, hasta).reduce((b, f) => b + fn(it, f), 0), 0);
+  // Ingresos: la paga semanal del domingo es para la semana siguiente (25/10, Carles) → cuenta del domingo anterior al sábado
+  const sumaIng = (lista, desde, hasta) => lista.reduce((a, it) => a + fechasIngreso(it, desde, hasta).reduce((b, f) => b + ing(it, f), 0), 0);
   const semIng = d.ingresos.filter(x => x.frec === 'semana'), mesIng = d.ingresos.filter(x => x.frec === 'mes');
   const semFij = d.fijos.filter(x => x.frec === 'semana'), mesFij = d.fijos.filter(x => x.frec === 'mes');
 
@@ -1414,14 +1420,14 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
     const fin = finPeriodo(p, P);
     let entra, fijos, nSemanas = 0, deInicio = 0, ciclo = null;
     if (P === 'mes') {
-      entra = suma(d.ingresos, ing, p, fin);
+      entra = sumaIng(d.ingresos, p, fin);
       fijos = suma(d.fijos, fij, p, fin);
       if (p === primero) deInicio = inicial;
     } else {
       const c = cicloDeSemana(d, p), b = bolsa(c), n = Math.max(1, b.sem.length), i = Math.max(0, b.sem.indexOf(p));
       nSemanas = n;
       ciclo = { ini: c, fin: finCiclo(c), n, arranque: d.inicial != null && conCobro && c === c0 && !trIni.length };
-      entra = suma(semIng, ing, p, fin) + parteDe(b.entra, n, i);
+      entra = sumaIng(semIng, p, fin) + parteDe(b.entra, n, i);
       fijos = suma(semFij, fij, p, fin) + parteDe(b.fijos, n, i);
       if (repartirInicial ? c === c0 : p === primero) deInicio = repartirInicial ? parteDe(inicial, n, i) : inicial;
     }
@@ -1625,7 +1631,7 @@ function vistaInicio() {
   const p = c.pendientes[0];
   const pregunta = p ? `<div class="tarjeta pregunta">
       <div class="preg-tit">${p.item.emoji} ¿Te ha llegado ${esc(fraseIngreso(p.item))}?</div>
-      <div class="preg-sub">${p.fecha === h ? 'Toca hoy' : 'Tocaba el ' + fechaCorta(p.fecha)} · ${eur(p.item.importe)}</div>
+      <div class="preg-sub">${p.fecha === h ? 'Toca hoy' : 'Tocaba el ' + fechaCorta(p.fecha)} · ${eur(p.item.importe)}${paraSiguiente(p.item) && p.fecha >= c.fin ? ' · para ' + (mes ? 'el mes que viene' : 'la semana que viene') : ''}</div>
       <div class="preg-bot"><button class="mini-b si" id="pSi">Sí</button><button class="mini-b" id="pOtra">Otra cantidad</button><button class="mini-b" id="pNo">No</button></div>
       ${otraCantidad ? `<div class="preg-otra"><input id="pImporte" class="texto" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="¿Cuánto te ha llegado?"><button class="mini-b si" id="pGuardar">Guardar</button></div>` : ''}
       ${c.pendientes.length > 1 ? `<div class="nota">Tienes ${c.pendientes.length - 1} más por confirmar.</div>` : ''}
@@ -2411,7 +2417,7 @@ function fijosDelPeriodo(ini, fin) {
   const desdeCiclo = semanas && ciclo === primerCicloSem(D) ? inicioCiclo(D.creado) : ciclo;
   [['ingreso', D.ingresos], ['fijo', D.fijos]].forEach(([tipo, lista]) => lista.forEach(it => {
     if (semanas && it.frec === 'mes') fechasDe(it, desdeCiclo, finCiclo(ciclo)).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, nSem));
-    else fechasDe(it, ini, fin).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, 0));
+    else (tipo === 'ingreso' ? fechasIngreso(it, ini, fin) : fechasDe(it, ini, fin)).filter(f => !yaEnSaldo(D, f)).forEach(f => meter(it, tipo, f, 0));
   }));
   return r.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : a.tipo === 'ingreso' ? -1 : 1);
 }
