@@ -2202,6 +2202,8 @@ function usarTextoPagos(texto, desdePortapapeles) {
 // Abre un enlace del iPhone (ej. el de Atajos). Aparte para poder probarlo en el ordenador.
 function abrirEnlace(url) { const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
 const NOMBRE_ATAJO = 'Pre$u';
+// 📊 Contador anónimo: nombre de la cuenta de GoatCounter (lo de antes de .goatcounter.com). Vacío = no cuenta nada. Ver «Contador anónimo» abajo del todo.
+const CONTADOR = 'presu-app';   // nombre de la cuenta de GoatCounter (lo de antes de .goatcounter.com)
 const ENLACE_ATAJO = 'https://www.icloud.com/shortcuts/2d1d5c5068134b6fb1d3a93f0815c10e';   // enlace de iCloud del atajo «Pre$u»
 
 function hojaRescate(motivo) {
@@ -4381,7 +4383,8 @@ function vistaAjustes() {
         </div>
         <div class="sec-tit">Zona peligrosa</div>
         <button class="boton peligro" id="bBorrar">Borrar todos mis datos</button>
-        <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>`,
+        <p class="nota" style="margin:8px 6px 0;text-align:center">Pre$u · tus datos solo están en este móvil</p>
+        ${CONTADOR ? '<p class="nota" style="margin:4px 6px 0;text-align:center">📊 Solo contamos cuántas veces se abre Pre$u, nunca lo que apuntas.</p>' : ''}`,
       montar() {
         $('bVolver').onclick = () => irA('inicio');
         document.querySelectorAll('.menu-aj .mov').forEach(el => el.onclick = () => irAjuste(el.dataset.s));
@@ -4850,6 +4853,28 @@ function hojaCuenta(k) {
 }
 
 pintar();
+
+// ---------- 📊 Contador anónimo (GoatCounter) ----------
+// Solo cuenta que alguien ha abierto Pre$u y si es la app instalada o el navegador (GoatCounter ve también el tipo de móvil).
+// NUNCA se envía nada de lo que se apunta (gastos, cuentas, nombre…). Sin cookies. Sin internet no cuenta (no pasa nada).
+// Solo cuenta en la web publicada (GitHub Pages), no en el simulador del PC. Si CONTADOR está vacío, no cuenta nada.
+const CONTADOR_PAUSA = 30 * 60e3;   // al volver tras más de 30 min fuera cuenta como otra vez que se abre
+let contadoEn = 0, contadorFuera = 0;
+function contarApertura() {
+  try {
+    if (!CONTADOR || !/\.github\.io$/.test(location.hostname) || navigator.onLine === false) return;
+    const instalada = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    const url = 'https://' + CONTADOR + '.goatcounter.com/count?p=' + encodeURIComponent(instalada ? '/app' : '/navegador')
+      + '&t=' + encodeURIComponent('Pre$u') + '&s=' + (screen.width || 0) + '&rnd=' + Math.random().toString(36).slice(2);
+    const img = new Image(); img.referrerPolicy = 'no-referrer'; img.src = url;
+    contadoEn = Date.now();
+  } catch (e) {}
+}
+contarApertura();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { contadorFuera = Date.now(); return; }
+  if (contadorFuera && Date.now() - contadorFuera > CONTADOR_PAUSA && Date.now() - contadoEn > CONTADOR_PAUSA) contarApertura();
+});
 
 // Para que se pueda instalar y abra sin internet (solo funciona en un servidor, como GitHub Pages o el simulador)
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
