@@ -3,7 +3,7 @@
 // - La página (index.html): primero intenta la versión nueva de internet; si no hay conexión, usa la guardada.
 // - Iconos y manifest: se usan los guardados.
 // Cuando subas una versión nueva a GitHub, cambia VERSION (ej: 'presu-v2') para renovar lo guardado.
-const VERSION = 'presu-v31';
+const VERSION = 'presu-v32';
 const ARCHIVOS = ['./', 'index.html', 'manifest.webmanifest',
   'iconos/apple-touch-icon.png', 'iconos/icon-192.png', 'iconos/icon-512.png', 'iconos/icon-maskable-512.png',
   'img/ejemplo-automatizacion.jpg'];
@@ -23,7 +23,11 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req)
-      .then(r => { const copia = r.clone(); caches.open(VERSION).then(c => c.put('index.html', copia)); return r; })
+      .then(r => {
+        // Solo se guarda si es la página buena (no una de error de GitHub ni la de un Wi-Fi con portal)
+        if (r.ok && r.type === 'basic' && !r.redirected) { const copia = r.clone(); caches.open(VERSION).then(c => c.put('index.html', copia)); }
+        return r;
+      })
       .catch(() => caches.match('index.html').then(r => r || caches.match('./'))));
     return;
   }

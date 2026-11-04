@@ -550,6 +550,51 @@ input[type=date].texto{min-height:52px}
 .antes-ap li{margin-bottom:7px}
 .antes-ap li:last-child{margin-bottom:0}
 .guia code{background:var(--campo);border-radius:6px;padding:1px 6px;font-size:13.5px;word-break:break-all}
+
+/* ===== Menú de abajo con 5 pestañas (4/11): letra más pequeña en móviles estrechos; en anchos, igual que antes ===== */
+@media (max-width:399.98px){.barra button{font-size:10.5px;min-width:0;padding-left:1px;padding-right:1px;white-space:nowrap}}
+@media (max-width:374.98px){.barra button{font-size:10px}}
+@media (max-width:340.98px){.barra button{font-size:9px}}
+
+/* ===== 🎮 Games (4/11): Snake y Block Blast ===== */
+.pg-elige{margin:0 0 4px}
+.pg-marcador{display:flex;align-items:center;gap:16px;margin:14px 4px 10px;font-size:14px;color:var(--sub);min-height:36px}
+.pg-marcador b{color:var(--txt);font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;margin-left:3px}
+.pg-combo{color:var(--acento);font-weight:700;font-size:14px}
+.pg-mini{margin-left:auto;border:0;background:var(--card);box-shadow:var(--sombra);border-radius:12px;padding:8px 12px;font-size:14px;font-weight:600;color:var(--txt);white-space:nowrap}
+.pg-tablero{position:relative;background:var(--campo);border-radius:18px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.pg-tablero canvas{display:block;width:100%;aspect-ratio:1/1}
+.pg-capa{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:20px;
+  background:var(--barra);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);cursor:pointer;z-index:2}
+.pg-capa .e{font-size:40px;line-height:1;margin-bottom:6px}
+.pg-capa b{font-size:20px;font-weight:800}
+.pg-capa small{font-size:14px;color:var(--sub)}
+.pg-capa .boton{width:auto;padding:12px 26px;margin-top:12px;font-size:16px}
+.pg-cruceta{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px);gap:6px;justify-content:center;margin:14px 0 0;
+  grid-template-areas:". a ." "i . d" ". b ."}
+.pg-cruceta button{border:0;border-radius:14px;background:var(--card);box-shadow:var(--sombra);color:var(--txt);display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.pg-cruceta button:active{background:var(--acento-suave);color:var(--acento)}
+.pg-cruceta svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.pg-bb{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:6px;aspect-ratio:1/1}
+.pg-bb i,.pg-flota i,.pg-pieza i{display:block;border-radius:6px}
+.pg-bb i{background:var(--card)}
+.pg-bb i.on,.pg-flota i.on,.pg-pieza i.on{background:var(--acento);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),inset 0 2px 0 rgba(255,255,255,.22)}
+.pg-bb i.sombra{background:var(--acento);opacity:.38}
+.pg-bb i.linea{background:var(--txt);opacity:.72}
+.pg-bb i.borra{animation:pg-borra .28s ease forwards}
+@keyframes pg-borra{to{transform:scale(.25);opacity:0}}
+.pg-flash{position:absolute;left:0;right:0;top:42%;text-align:center;font-size:24px;font-weight:850;color:var(--acento);pointer-events:none;z-index:3;
+  text-shadow:0 1px 0 var(--card),0 0 8px var(--card);animation:pg-sube .9s ease forwards}
+@keyframes pg-sube{from{opacity:0;transform:translateY(10px)}15%{opacity:1;transform:none}75%{opacity:1}to{opacity:0;transform:translateY(-18px)}}
+.pg-bandeja{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.pg-hueco{height:108px;border-radius:16px;background:var(--card);box-shadow:var(--sombra);display:flex;align-items:center;justify-content:center}
+.pg-pieza{display:grid;gap:2px;--pgm:15px;grid-auto-rows:var(--pgm);cursor:grab;touch-action:none;padding:8px}
+.pg-pieza i{border-radius:4px}
+.pg-pieza.no-cabe{opacity:.28}
+.pg-pieza.cogida{opacity:.15}
+.pg-flota{position:fixed;left:0;top:0;display:grid;pointer-events:none;z-index:60;filter:drop-shadow(0 6px 12px rgba(0,0,0,.22))}
+.pg-nota{color:var(--sub);font-size:13px;text-align:center;margin:12px 8px 0}
+@media (max-width:374.98px){.pg-pieza{--pgm:13px}.pg-hueco{height:96px}.pg-cruceta{grid-template-rows:repeat(3,44px)}}
 </style>
 </head>
 <body>
@@ -1689,6 +1734,7 @@ const ICONOS = {
   movimientos: '<svg viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="17.5" r="1.2"/></svg>',
   resumen: '<svg viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20v-10"/></svg>',
   calendario: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r=".6"/><circle cx="12" cy="14.5" r=".6"/><circle cx="15.5" cy="14.5" r=".6"/></svg>',
+  games: '<svg viewBox="0 0 24 24"><path d="M7.5 7.5h9a4.5 4.5 0 0 1 4.4 5.5l-.9 4a2.4 2.4 0 0 1-4.1 1.1L13.6 16h-3.2l-2.3 2.1A2.4 2.4 0 0 1 4 17l-.9-4a4.5 4.5 0 0 1 4.4-5.5z"/><path d="M8 10.5v3M6.5 12h3"/><circle cx="15.5" cy="11" r=".6"/><circle cx="17" cy="13" r=".6"/></svg>',
   ajustes: '<svg class="rueda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 };
 let D = null;              // los datos guardados (localStorage['presu'])
@@ -1762,7 +1808,7 @@ function pintarInicio(recien) {
 
 function pintarApp(conAnimacion) {
   const y = window.scrollY;
-  const v = vista === 'inicio' ? vistaInicio() : vista === 'movimientos' ? vistaMovimientos() : vista === 'ajustes' ? vistaAjustes() : vista === 'calendario' ? vistaCalendario() : vistaResumen();
+  const v = vista === 'inicio' ? vistaInicio() : vista === 'movimientos' ? vistaMovimientos() : vista === 'ajustes' ? vistaAjustes() : vista === 'calendario' ? vistaCalendario() : vista === 'games' ? vistaGames() : vistaResumen();
   $('raiz').innerHTML = `<section class="app ${conAnimacion ? '' : 'quieta'}">${v.html}</section>${vista === 'ajustes' ? '' : barra()}`;
   if (!conAnimacion) window.scrollTo(0, y);
   if ($('bAjustes')) $('bAjustes').onclick = () => irA('ajustes');
@@ -1771,11 +1817,12 @@ function pintarApp(conAnimacion) {
 }
 function irA(v) {
   if (v === vista) return window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (vista === 'games') pgPausar();   // 🎮 al salir de Games, Snake se para
   vista = v; otraCantidad = false; subAj = '';
   pintarApp(true); window.scrollTo(0, 0);
 }
 function barra() {
-  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['calendario', 'Calendario'], ['resumen', 'Resumen']].map(([v, t]) =>
+  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['calendario', 'Calendario'], ['resumen', 'Resumen'], ['games', 'Games']].map(([v, t]) =>
     `<button data-v="${v}" class="${vista === v ? 'on' : ''}">${ICONOS[v]}<span>${t}</span></button>`).join('')}</nav>`;
 }
 const botonAjustes = `<button class="atras" id="bAjustes" aria-label="Ajustes">${ICONOS.ajustes}</button>`;
@@ -5656,6 +5703,322 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { contadorFuera = Date.now(); return; }
   if (contadorFuera && Date.now() - contadorFuera > CONTADOR_PAUSA && Date.now() - contadoEn > CONTADOR_PAUSA) contarApertura();
 });
+
+// ---------- 🎮 Games (4/11): Snake y Block Blast ----------
+// Todo lo de los juegos empieza por pg-. Los récords van en D.juegos = { snake, blocks } (entran en la copia y se borran con «Borrar todos mis datos»).
+// Las partidas viven en memoria: se conservan al cambiar de pestaña (Snake queda en pausa).
+let pgJuego = 'snake', pgS = null, pgB = null, pgTimer = 0;
+const pgN = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const pgColor = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pgRecord = k => +(((D && D.juegos) || {})[k]) || 0;
+function pgApuntar(k, p) {   // guarda el récord en cuanto se supera
+  if (!D || !(p > pgRecord(k))) return;
+  D.juegos = Object.assign({}, D.juegos, { [k]: p }); guardarDatos();
+}
+const pgFlecha = d => `<svg viewBox="0 0 24 24"><path d="${{ a: 'M6 15l6-6 6 6', b: 'M6 9l6 6 6-6', i: 'M15 6l-6 6 6 6', d: 'M9 6l6 6-6 6' }[d]}"/></svg>`;
+
+function vistaGames() {
+  const sn = pgJuego === 'snake';
+  return {
+    html: `<div class="cab"><h1>Games</h1>${botonAjustes}</div>
+      <div class="seg pg-elige"><button data-j="snake" class="${sn ? 'on' : ''}">🐍 Snake</button><button data-j="blocks" class="${sn ? '' : 'on'}">🧩 Block Blast</button></div>
+      ${sn ? pgHtmlSnake() : pgHtmlBlocks()}`,
+    montar() {
+      document.querySelectorAll('.pg-elige button').forEach(b => b.onclick = () => {
+        if (b.dataset.j === pgJuego) return;
+        pgPausar(); pgJuego = b.dataset.j; pintarApp();
+      });
+      if (sn) pgMontarSnake(); else pgMontarBlocks();
+    }
+  };
+}
+
+// ----- 🐍 Snake: tablero 15×15, cada moneda «$» = 10 puntos y un poco más rápido -----
+const PG_LADO = 15;
+function pgNuevoSnake() {
+  pgS = { cuerpo: [[7, 7], [6, 7], [5, 7]], dir: [1, 0], cola: [], puntos: 0, monedas: 0, estado: 'listo', recIni: pgRecord('snake') };
+  pgS.moneda = pgSitioMoneda();
+  return pgS;
+}
+function pgSitioMoneda() {
+  const libres = [];
+  for (let y = 0; y < PG_LADO; y++) for (let x = 0; x < PG_LADO; x++) if (!pgS.cuerpo.some(p => p[0] === x && p[1] === y)) libres.push([x, y]);
+  return libres.length ? libres[Math.floor(Math.random() * libres.length)] : null;
+}
+const pgVelocidad = () => Math.max(70, 190 - 8 * pgS.monedas);   // ms por paso
+function pgHtmlSnake() {
+  const s = pgS || pgNuevoSnake();
+  return `<div class="pg-marcador"><span>Puntos<b id="pgPuntos">${pgN(s.puntos)}</b></span><span>🏆<b id="pgRec">${pgN(pgRecord('snake'))}</b></span>
+      <button class="pg-mini" id="pgPausa"></button></div>
+    <div class="pg-tablero pg-snake" id="pgZona"><canvas id="pgSnake" width="${PG_LADO * 20}" height="${PG_LADO * 20}"></canvas><div class="pg-capa" id="pgCapa"></div></div>
+    <div class="pg-cruceta">${[['a', 0, -1, 'Arriba'], ['i', -1, 0, 'Izquierda'], ['d', 1, 0, 'Derecha'], ['b', 0, 1, 'Abajo']].map(([k, x, y, t]) =>
+      `<button data-x="${x}" data-y="${y}" aria-label="${t}" style="grid-area:${k}">${pgFlecha(k)}</button>`).join('')}</div>`;
+}
+function pgMontarSnake() {
+  pgDibujar(); pgSnakeUI();
+  $('pgPausa').onclick = () => {
+    if (pgS.estado === 'jugando') return pgPausar();
+    pgNuevoSnake(); pgDibujar(); pgSnakeUI();
+  };
+  $('pgCapa').onclick = pgTocar;
+  document.querySelectorAll('.pg-cruceta button').forEach(b => b.onpointerdown = e => { e.preventDefault(); pgDir(+b.dataset.x, +b.dataset.y); });
+  // Deslizar el dedo sobre el tablero (sin levantarlo se puede girar varias veces)
+  const z = $('pgZona'); let ini = null;
+  z.onpointerdown = e => { if (pgS.estado === 'jugando') { ini = { x: e.clientX, y: e.clientY }; e.preventDefault(); } };
+  z.onpointermove = e => {
+    if (!ini) return;
+    const dx = e.clientX - ini.x, dy = e.clientY - ini.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+    if (Math.abs(dx) > Math.abs(dy)) pgDir(Math.sign(dx), 0); else pgDir(0, Math.sign(dy));
+    ini = { x: e.clientX, y: e.clientY };
+  };
+  z.onpointerup = z.onpointercancel = () => { ini = null; };
+}
+function pgTocar() {   // tocar la capa: empezar, seguir u otra partida
+  if (!pgS) return;
+  if (pgS.estado === 'fin') pgNuevoSnake();
+  pgSeguir();
+}
+function pgDir(dx, dy) {
+  const s = pgS; if (!s || s.estado === 'fin') return;
+  if (s.estado !== 'jugando') pgSeguir();
+  const ult = s.cola.length ? s.cola[s.cola.length - 1] : s.dir;
+  if ((dx === ult[0] && dy === ult[1]) || (dx === -ult[0] && dy === -ult[1])) return;   // ni lo mismo ni darse la vuelta
+  if (s.cola.length < 2) s.cola.push([dx, dy]);
+}
+function pgSeguir() {
+  if (!pgS || pgS.estado === 'fin') return;
+  pgS.estado = 'jugando'; clearTimeout(pgTimer);
+  pgTimer = setTimeout(pgPaso, pgVelocidad());
+  pgSnakeUI();
+}
+function pgPausar() {
+  clearTimeout(pgTimer); pgTimer = 0;
+  if (pgS && pgS.estado === 'jugando') { pgS.estado = 'pausa'; pgSnakeUI(); }
+}
+function pgPaso() {
+  pgTimer = 0;
+  const s = pgS; if (!s || s.estado !== 'jugando') return;
+  if (vista !== 'games' || pgJuego !== 'snake' || !$('pgSnake') || document.hidden) return pgPausar();
+  if (s.cola.length) s.dir = s.cola.shift();
+  const c = s.cuerpo[0], n = [c[0] + s.dir[0], c[1] + s.dir[1]];
+  const come = !!s.moneda && n[0] === s.moneda[0] && n[1] === s.moneda[1];
+  const resto = come ? s.cuerpo : s.cuerpo.slice(0, -1);   // si no come, la cola se mueve y deja su sitio libre
+  if (n[0] < 0 || n[1] < 0 || n[0] >= PG_LADO || n[1] >= PG_LADO || resto.some(p => p[0] === n[0] && p[1] === n[1])) return pgFinSnake();
+  s.cuerpo = [n, ...resto];
+  if (come) {
+    s.puntos += 10; s.monedas++; pgApuntar('snake', s.puntos);
+    s.moneda = pgSitioMoneda();
+    if (!s.moneda) return pgFinSnake(true);
+  }
+  pgDibujar(); pgSnakeUI();
+  pgTimer = setTimeout(pgPaso, pgVelocidad());
+}
+function pgFinSnake(lleno) {
+  const s = pgS; s.estado = 'fin'; s.lleno = !!lleno;
+  s.nuevo = s.puntos > s.recIni;
+  if (s.nuevo) aviso('🏆 ¡Nuevo récord en Snake!');
+  pgDibujar(); pgSnakeUI();
+}
+function pgSnakeUI() {
+  const s = pgS; if (!s || !$('pgSnake')) return;
+  $('pgPuntos').textContent = pgN(s.puntos);
+  $('pgRec').textContent = pgN(pgRecord('snake'));
+  const b = $('pgPausa');
+  b.textContent = s.estado === 'jugando' ? '⏸ Pausa' : '↻ Nueva';
+  b.classList.toggle('oculto', s.estado === 'listo');
+  const capa = $('pgCapa');
+  capa.classList.toggle('oculto', s.estado === 'jugando');
+  capa.innerHTML = s.estado === 'listo' ? '<span class="e">🐍</span><b>Toca para empezar</b><small>Desliza el dedo sobre el tablero o usa las flechas.<br>Cada $ son 10 puntos.</small>'
+    : s.estado === 'pausa' ? '<span class="e">⏸</span><b>En pausa</b><small>Toca para seguir</small>'
+    : `<span class="e">${s.lleno ? '🎉' : s.nuevo ? '🏆' : '💥'}</span><b>${s.lleno ? '¡Has llenado el tablero!' : s.nuevo ? '¡Nuevo récord!' : 'Fin de la partida'}</b>
+      <small>${pgN(s.puntos)} puntos · ${s.monedas === 1 ? '1 moneda' : s.monedas + ' monedas'}</small><button class="boton">Jugar otra vez</button>`;
+}
+function pgDibujar() {
+  const cv = $('pgSnake'), s = pgS; if (!cv || !s) return;
+  const px = Math.max(PG_LADO * 10, Math.round((cv.clientWidth || 300) * (window.devicePixelRatio || 1)));
+  if (cv.width !== px) { cv.width = px; cv.height = px; }
+  const g = cv.getContext('2d'), k = px / PG_LADO;
+  const caja = (x, y, m, r) => { g.beginPath(); if (g.roundRect) g.roundRect(x * k + m, y * k + m, k - 2 * m, k - 2 * m, r); else g.rect(x * k + m, y * k + m, k - 2 * m, k - 2 * m); g.fill(); };
+  g.clearRect(0, 0, px, px);
+  // cuadros suaves
+  g.fillStyle = pgColor('--sep'); g.globalAlpha = .55;
+  for (let y = 0; y < PG_LADO; y++) for (let x = (y % 2); x < PG_LADO; x += 2) g.fillRect(x * k, y * k, k, k);
+  g.globalAlpha = 1;
+  // moneda
+  if (s.moneda) {
+    const [x, y] = s.moneda;
+    g.fillStyle = pgColor('--txt'); g.beginPath(); g.arc((x + .5) * k, (y + .5) * k, k * .42, 0, Math.PI * 2); g.fill();
+    g.fillStyle = pgColor('--card'); g.font = `800 ${Math.round(k * .62)}px -apple-system,system-ui,sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', (x + .5) * k, (y + .54) * k);
+  }
+  // serpiente
+  const verde = pgColor('--acento'), n = s.cuerpo.length;
+  g.fillStyle = verde;
+  for (let i = n - 1; i >= 0; i--) { g.globalAlpha = 1 - (i / Math.max(1, n - 1)) * .35; caja(s.cuerpo[i][0], s.cuerpo[i][1], k * .06, k * .28); }
+  g.globalAlpha = 1;
+  const [hx, hy] = s.cuerpo[0], [dx, dy] = s.dir;
+  g.fillStyle = pgColor('--acento-txt');
+  [-1, 1].forEach(l => { g.beginPath(); g.arc((hx + .5 + dx * .18 + dy * l * .2) * k, (hy + .5 + dy * .18 - dx * l * .2) * k, k * .09, 0, Math.PI * 2); g.fill(); });
+}
+// Al salir de la app, Snake se pausa. Con teclado (PC): flechas o WASD, espacio = pausa.
+document.addEventListener('visibilitychange', () => { if (document.hidden) pgPausar(); });
+window.addEventListener('pagehide', pgPausar);
+document.addEventListener('keydown', e => {
+  if (vista !== 'games' || pgJuego !== 'snake' || !pgS || !$('pgSnake') || document.querySelector('.hoja.ver')) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || '')) return;
+  const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }[e.key];
+  if (d) { e.preventDefault(); pgDir(d[0], d[1]); }
+  else if (e.key === ' ') { e.preventDefault(); if (pgS.estado === 'jugando') pgPausar(); else pgTocar(); }
+});
+window.addEventListener('resize', () => { if (vista === 'games' && pgJuego === 'snake') pgDibujar(); });
+
+// ----- 🧩 Block Blast: tablero 8×8, 3 piezas por tanda, sin girar -----
+// Puntos: 1 por casilla + 10/30/60/100… por 1/2/3/4… líneas a la vez (× combo) + 100 si dejas el tablero vacío.
+// Combo: +0,5 por cada jugada seguida que borra (máx. ×3); se pierde tras 3 jugadas sin borrar.
+const PG_FORMAS = ['1', '11', '1/1', '111', '1/1/1', '1111', '1/1/1/1', '11111', '1/1/1/1/1', '11/11', '111/111', '11/11/11', '111/111/111',
+  '10/11', '01/11', '11/10', '11/01', '100/111', '001/111', '111/100', '111/001', '10/10/11', '01/01/11', '11/10/10', '11/01/01',
+  '111/010', '010/111', '10/11/10', '01/11/01', '110/011', '011/110', '10/11/01', '01/11/10',
+  '100/100/111', '001/001/111', '111/100/100', '111/001/001'].map(t => {
+  const c = []; t.split('/').forEach((f, r) => [...f].forEach((v, k) => { if (v === '1') c.push([r, k]); }));
+  return c;
+});
+const pgAncho = f => Math.max(...f.map(p => p[1])) + 1, pgAlto = f => Math.max(...f.map(p => p[0])) + 1;
+const pgCabe = (t, f, r, c) => f.every(([a, b]) => { const y = r + a, x = c + b; return y >= 0 && x >= 0 && y < 8 && x < 8 && !t[y * 8 + x]; });
+function pgCabeAlguna(t, f) { for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (pgCabe(t, f, r, c)) return true; return false; }
+// Las 3 piezas de una tanda: al azar, pero al menos una tiene que caber
+function pgTanda(t) {
+  const azar = n => Math.floor(Math.random() * n), tanda = [0, 1, 2].map(() => azar(PG_FORMAS.length));
+  if (!tanda.some(i => pgCabeAlguna(t, PG_FORMAS[i]))) {
+    const caben = PG_FORMAS.map((f, i) => i).filter(i => pgCabeAlguna(t, PG_FORMAS[i]));
+    if (caben.length) tanda[azar(3)] = caben[azar(caben.length)];
+  }
+  return tanda;
+}
+function pgNuevoBlocks() {
+  const t = Array(64).fill(0);
+  pgB = { tab: t, piezas: pgTanda(t), puntos: 0, racha: 0, sinBorrar: 0, fin: false, recIni: pgRecord('blocks'), anim: null };
+  return pgB;
+}
+const pgMult = racha => Math.min(3, 1 + .5 * racha);   // lo que multiplicará la próxima jugada que borre
+function pgLineas(t) {   // filas y columnas llenas → casillas a borrar
+  const borrar = new Set(); let n = 0;
+  for (let y = 0; y < 8; y++) { let ok = true; for (let x = 0; x < 8; x++) if (!t[y * 8 + x]) ok = false; if (ok) { n++; for (let x = 0; x < 8; x++) borrar.add(y * 8 + x); } }
+  for (let x = 0; x < 8; x++) { let ok = true; for (let y = 0; y < 8; y++) if (!t[y * 8 + x]) ok = false; if (ok) { n++; for (let y = 0; y < 8; y++) borrar.add(y * 8 + x); } }
+  return { n, borrar };
+}
+function pgHtmlBlocks() {
+  if (!pgB) pgNuevoBlocks();
+  return `<div class="pg-marcador"><span>Puntos<b id="pgPuntos"></b></span><span>🏆<b id="pgRec"></b></span><span class="pg-combo" id="pgCombo"></span>
+      <button class="pg-mini" id="pgNueva">↻ Nueva</button></div>
+    <div class="pg-tablero" id="pgZona"><div class="pg-bb" id="pgTab">${'<i></i>'.repeat(64)}</div></div>
+    <div class="pg-bandeja" id="pgBandeja"></div>
+    <p class="pg-nota">Arrastra las piezas al tablero. Llena una fila o una columna para borrarla.</p>`;
+}
+function pgMontarBlocks() {
+  pgPintarBlocks();
+  let seguro = 0;
+  $('pgNueva').onclick = () => {
+    if (pgB.puntos > 0 && !pgB.fin && Date.now() - seguro > 3000) { seguro = Date.now(); $('pgNueva').textContent = '¿Seguro?'; setTimeout(() => { if ($('pgNueva')) $('pgNueva').textContent = '↻ Nueva'; }, 3000); return; }
+    pgNuevoBlocks(); pgPintarBlocks();
+  };
+}
+function pgPintarBlocks() {
+  const b = pgB, tab = $('pgTab'); if (!b || !tab) return;
+  $('pgPuntos').textContent = pgN(b.puntos);
+  $('pgRec').textContent = pgN(pgRecord('blocks'));
+  $('pgCombo').textContent = b.racha > 0 ? 'Combo ×' + String(pgMult(b.racha)).replace('.', ',') : '';
+  [...tab.children].forEach((el, k) => { el.className = (b.tab[k] || (b.anim && b.anim.has(k)) ? 'on' : '') + (b.anim && b.anim.has(k) ? ' borra' : ''); });
+  $('pgBandeja').innerHTML = b.piezas.map((p, i) => {
+    if (p == null) return '<div class="pg-hueco"></div>';
+    const f = PG_FORMAS[p], w = pgAncho(f), h = pgAlto(f), celdas = [];
+    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) celdas.push(f.some(q => q[0] === r && q[1] === c) ? '<i class="on"></i>' : '<i></i>');
+    return `<div class="pg-hueco"><div class="pg-pieza${pgCabeAlguna(b.tab, f) ? '' : ' no-cabe'}" data-i="${i}" style="grid-template-columns:repeat(${w},var(--pgm))">${celdas.join('')}</div></div>`;
+  }).join('');
+  document.querySelectorAll('.pg-pieza').forEach(el => el.onpointerdown = e => pgArrastrar(e, el));
+  const zona = $('pgZona'), vieja = zona.querySelector('.pg-capa'); if (vieja) vieja.remove();
+  if (b.fin && !b.anim) {
+    zona.insertAdjacentHTML('beforeend', `<div class="pg-capa"><span class="e">${b.nuevo ? '🏆' : '🧩'}</span><b>${b.nuevo ? '¡Nuevo récord!' : 'No cabe ninguna pieza'}</b>
+      <small>${pgN(b.puntos)} puntos</small><button class="boton" id="pgOtra">Otra partida</button></div>`);
+    $('pgOtra').onclick = () => { pgNuevoBlocks(); pgPintarBlocks(); };
+  }
+}
+// Marca dónde caería la pieza y qué líneas se borrarían
+function pgSombra(f, sitio) {
+  const tab = $('pgTab'); if (!tab) return;
+  const els = tab.children;
+  for (const el of els) el.classList.remove('sombra', 'linea');
+  if (!sitio) return;
+  const t = pgB.tab.slice();
+  f.forEach(([a, c]) => { const k = (sitio[0] + a) * 8 + sitio[1] + c; t[k] = 1; els[k].classList.add('sombra'); });
+  pgLineas(t).borrar.forEach(k => els[k].classList.add('linea'));
+}
+function pgArrastrar(e, el) {
+  const b = pgB, i = +el.dataset.i;
+  if (!b || b.fin || b.anim || b.piezas[i] == null) return;
+  e.preventDefault();
+  const tab = $('pgTab'), R = tab.getBoundingClientRect(), cs = getComputedStyle(tab);
+  const pad = parseFloat(cs.paddingLeft) || 0, gap = parseFloat(cs.columnGap) || 0;
+  const celda = (R.width - 2 * pad - 7 * gap) / 8, paso = celda + gap;
+  const f = PG_FORMAS[b.piezas[i]], w = pgAncho(f), h = pgAlto(f), W = w * paso - gap, H = h * paso - gap;
+  const encima = e.pointerType === 'mouse' ? 12 : 56;   // la pieza va por encima del dedo, para verla
+  const fl = document.createElement('div');
+  fl.className = 'pg-flota';
+  fl.style.cssText = `width:${W}px;height:${H}px;grid-template-columns:repeat(${w},${celda}px);grid-auto-rows:${celda}px;gap:${gap}px`;
+  const celdas = [];
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) celdas.push(f.some(q => q[0] === r && q[1] === c) ? '<i class="on"></i>' : '<i></i>');
+  fl.innerHTML = celdas.join('');
+  document.body.appendChild(fl);
+  el.classList.add('cogida');
+  try { el.setPointerCapture(e.pointerId); } catch (er) {}
+  let sitio = null;
+  const mover = (x, y) => {
+    const L = x - W / 2, T = y - H - encima;
+    fl.style.transform = `translate(${L}px,${T}px)`;
+    const c = Math.round((L - R.left - pad) / paso), r = Math.round((T - R.top - pad) / paso);
+    const nuevo = pgCabe(b.tab, f, r, c) ? [r, c] : null;
+    if (String(nuevo) !== String(sitio)) { sitio = nuevo; pgSombra(f, sitio); }
+  };
+  mover(e.clientX, e.clientY);
+  el.onpointermove = ev => { ev.preventDefault(); mover(ev.clientX, ev.clientY); };
+  const soltar = ok => {
+    el.onpointermove = el.onpointerup = el.onpointercancel = null;
+    fl.remove(); el.classList.remove('cogida'); pgSombra(null);
+    if (ok && sitio) pgJugada(i, sitio[0], sitio[1]);
+  };
+  el.onpointerup = () => soltar(true);
+  el.onpointercancel = () => soltar(false);
+}
+function pgJugada(i, r, c) {
+  const b = pgB, f = PG_FORMAS[b.piezas[i]];
+  f.forEach(([a, k]) => { b.tab[(r + a) * 8 + c + k] = 1; });
+  b.piezas[i] = null;
+  let pts = f.length, texto = '';
+  const { n, borrar } = pgLineas(b.tab);
+  if (n) {
+    const mult = pgMult(b.racha);
+    b.racha++; b.sinBorrar = 0;
+    const lin = Math.round(10 * n * (n + 1) / 2 * mult);
+    pts += lin;
+    borrar.forEach(k => { b.tab[k] = 0; });
+    texto = '+' + pgN(lin) + (mult > 1 ? ' · ×' + String(mult).replace('.', ',') : '');
+    if (b.tab.every(v => !v)) { pts += 100; texto += '<br>¡Tablero limpio! +100'; }
+    b.anim = borrar;
+  } else if (++b.sinBorrar >= 3) b.racha = 0;
+  b.puntos += pts; pgApuntar('blocks', b.puntos);
+  if (b.piezas.every(p => p == null)) b.piezas = pgTanda(b.tab);
+  if (!b.piezas.some(p => p != null && pgCabeAlguna(b.tab, PG_FORMAS[p]))) {
+    b.fin = true; b.nuevo = b.puntos > b.recIni;
+    if (b.nuevo) aviso('🏆 ¡Nuevo récord en Block Blast!');
+  }
+  pgPintarBlocks();
+  if (texto && $('pgZona')) $('pgZona').insertAdjacentHTML('beforeend', `<div class="pg-flash">${texto}</div>`);
+  if (n) {   // tras la animación de borrar (y, si toca, sale la capa de «fin»)
+    const yo = b.jug = (b.jug || 0) + 1;
+    setTimeout(() => { if (b.jug !== yo) return; b.anim = null; if (vista === 'games' && pgJuego === 'blocks' && pgB === b) pgPintarBlocks(); }, 300);
+    setTimeout(() => { const fl = document.querySelector('.pg-flash'); if (fl) fl.remove(); }, 950);
+  }
+}
 
 // Para que se pueda instalar y abra sin internet (solo funciona en un servidor, como GitHub Pages o el simulador)
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
