@@ -1828,7 +1828,7 @@ function irA(v) {
   pintarApp(true); window.scrollTo(0, 0);
 }
 function barra() {
-  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['calendario', 'Calendario'], ['resumen', 'Resumen'], ['games', 'Games']].map(([v, t]) =>
+  return `<nav class="barra">${[['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['calendario', 'Calendario'], ['resumen', 'Resumen']].map(([v, t]) =>
     `<button data-v="${v}" class="${vista === v ? 'on' : ''}">${ICONOS[v]}<span>${t}</span></button>`).join('')}</nav>`;
 }
 const botonAjustes = `<button class="atras" id="bAjustes" aria-label="Ajustes">${ICONOS.ajustes}</button>`;
