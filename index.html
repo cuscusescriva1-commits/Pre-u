@@ -1627,7 +1627,9 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
   const cW = P === 'semana' ? primerCicloSem(d) : c0, repartirInicial = conCobro && cW === c0;
   const trIni = tramosInicial(d);   // si eligió hasta cuándo le tiene que durar lo que tenía, manda esto
 
-  let arrastre = 0, ahorrado = 0, res = null, objAccIni = null;
+  // 📉 Lo que falta de semanas anteriores (cobrando cada mes): se reparte entre las semanas que quedan hasta el cobro, esta incluida (08/11, Carles).
+  // «deuda» = lo que aún queda por repartir; cada semana se resta su parte (deuda ÷ semanas que quedan del ciclo); en la última, lo que quede.
+  let arrastre = 0, ahorrado = 0, res = null, objAccIni = null, deuda = 0;
   const objs = d.objetivos || [], objAcc = {};
   objs.forEach(o => { objAcc[o.id] = r2(o.inicial || 0); });
   // Ingresos extra con destino: repartidos hasta una fecha, a la hucha o a un objetivo (no cuentan enteros en su semana)
@@ -1638,7 +1640,7 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
   for (let p = primero; p <= actual; p = siguientePeriodo(p, P)) {
     if (p === actual) objAccIni = Object.assign({}, objAcc);   // lo que llevaba cada objetivo antes de este periodo
     const fin = finPeriodo(p, P);
-    let entra, fijos, nSemanas = 0, deInicio = 0, ciclo = null;
+    let entra, fijos, nSemanas = 0, deInicio = 0, ciclo = null, repDeuda = 0;
     if (P === 'mes') {
       entra = sumaIng(d.ingresos, p, fin);
       fijos = suma(normFij, fij, p, fin);
@@ -1650,6 +1652,10 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
       entra = sumaIng(semIng, p, fin) + parteDe(b.entra, n, i);
       fijos = suma(semFij, fij, p, fin) + parteDe(b.fijos, n, i);
       if (repartirInicial ? c === c0 : p === primero) deInicio = repartirInicial ? parteDe(inicial, n, i) : inicial;
+      if (conCobro) {   // lo que venía en negativo pasa a «deuda» y esta semana solo lleva su parte
+        if (arrastre < 0) { deuda = r2(deuda - arrastre); arrastre = 0; }
+        if (deuda > 0.004) { repDeuda = parteDe(deuda, Math.max(1, n - i), 0); deuda = r2(deuda - repDeuda); arrastre = r2(arrastre - repDeuda); }
+      }
     }
     if (trIni.length) deInicio = cuotaEn(trIni, p, P);
     entra = r2(entra); fijos = r2(fijos); deInicio = r2(deInicio);     // a céntimos, para que lo que se ve sume exacto
@@ -1672,7 +1678,7 @@ function calcular(d, hoy = hoyIso(), hasta, hist) {   // hist (opcional): array 
     const aAnual = r2(anual.cargo(p));
     const gastado = movs.filter(x => x.tipo === 'gasto' && !x.hucha && !x.objetivo && !esRepartido(x)).reduce((s, x) => s + x.importe, 0);
     const total = entra + deInicio + deAhorros + deRepartos + deAhorrado - fijos - aObjetivos - aAnual - aRepartos - aApartar + arrastre + extras;
-    res = { ini: p, fin, entra, deInicio, deAhorros, deRepartos, deAhorrado, fijos, aObjetivos, aAnual, aRepartos, aApartar, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo };
+    res = { ini: p, fin, entra, deInicio, deAhorros, deRepartos, deAhorrado, fijos, aObjetivos, aAnual, aRepartos, aApartar, arrastre, extras, gastado, total: r2(total), queda: r2(total - gastado), nSemanas, ciclo, repDeuda, deudaQueda: deuda };
     if (hist) hist.push(Object.assign({ nGastos: movs.filter(x => x.tipo === 'gasto' && !x.hucha && !x.objetivo && !esRepartido(x)).length, sob: p < actual ? sobranteEn(d, p) : null }, res));
     // Al acabar un periodo: si falta dinero, se resta del siguiente; si sobra, al ahorro, al siguiente o a tus objetivos (según eligió)
     if (p < actual) {
@@ -1862,7 +1868,7 @@ function vistaInicio() {
   if (c.aRepartos) filas.push(['📅 Gastos repartidos', '−' + eur(c.aRepartos)]);
   if (c.aApartar) filas.push(['🎉 Apartado de lo que te sobró', '−' + eur(c.aApartar)]);
   if (c.aObjetivos) filas.push(['🎯 Para tus objetivos', '−' + eur(c.aObjetivos)]);
-  if (Math.abs(c.arrastre) >= .005) filas.push([mes ? 'Del mes pasado' : 'De la semana pasada', (c.arrastre > 0 ? '+' : '−') + eur(Math.abs(c.arrastre))]);
+  if (Math.abs(c.arrastre) >= .005) filas.push([mes ? 'Del mes pasado' : c.repDeuda > 0.004 ? 'Lo que faltaba, repartido hasta el cobro' : 'De la semana pasada', (c.arrastre > 0 ? '+' : '−') + eur(Math.abs(c.arrastre))]);
   // 📉 Lo que arrastrabas en negativo y decidiste repartir (q04): sale aparte de los ingresos extra
   const repNeg = r2(D.movimientos.filter(m => m.origen === 'repartoNeg' && m.tipo === 'ingreso' && m.fecha >= c.ini && m.fecha <= c.fin).reduce((t, m) => t + m.importe, 0));
   if (repNeg) filas.push(['📉 Lo que arrastrabas (repartido)', '+' + eur(repNeg)]);
@@ -3930,6 +3936,8 @@ const txtSaldo = n => txtNum(n);
 function hojaCuadrar(opts) {
   opts = opts || {};
   const mes = D.periodo === 'mes', h = hoyIso(), P = D.periodo, prev = periodoPasado();
+  // 📅 Cuántas semanas quedan hasta que cobras (esta incluida), solo por semanas y cobrando cada mes: lo que falte se reparte entre ellas (08/11, Carles)
+  const nCobro = P === 'semana' && hayIngresoMensual(D) ? semanasDelCiclo(D, cicloDeSemana(D, lunesDe(h))).filter(w => w >= lunesDe(h)).length : 0;
   // ¿A qué semana (o mes) va la diferencia? Desde el aviso del lunes, a la pasada (si el aviso es porque hace mucho que no cuadras, a esta); si no, se pregunta.
   let cuandoFue = opts.desdeAviso && opts.desdeAviso !== 'tiempo' && prev ? 'pasada' : 'esta';
   const fechaDif = () => cuandoFue === 'pasada' && prev ? finPeriodo(prev, P) : h;
@@ -4041,7 +4049,10 @@ function hojaCuadrar(opts) {
     const tr = traspasos(), preguntas = parejas(difs0());
     const normal = normalPeriodo(), grande = f => f.d < 0 && -f.d > Math.max(2 * normal, 30);
     ds.forEach(f => { const fl = filas.find(x => x.k === f.k);
-      if (!fl.sobra && f.d < 0 && !grande(f) && !candCobrados(f).length) fl.sobra = f.sobra = 'gastos';   // si puede ser un fijo ya cobrado, que elija
+      if (!fl.sobra && f.d < 0 && !candCobrados(f).length) {   // si puede ser un fijo ya cobrado, que elija
+        if (nCobro >= 2 && -f.d >= 10) fl.sobra = f.sobra = 'cobro';   // cobrando cada mes, lo que falta se reparte hasta el cobro
+        else if (!grande(f)) fl.sobra = f.sobra = 'gastos';
+      }
       if (!fl.n) fl.n = f.n = Math.min(12, Math.max(2, Math.ceil(-f.d / Math.max(normal / 2, 10)))); });
     const c = calcular(D), d2 = JSON.parse(JSON.stringify(D));
     aplicarCuadre(d2, ds, tr, Date.now());
@@ -4064,7 +4075,9 @@ function hojaCuadrar(opts) {
       } else {
         candCobrados(f).forEach(x => o.push(op(f, 'cob:' + x.it.id + '|' + x.f, `📌 Ya me han cobrado ${esc(x.it.nombre)}`,
           `Pre$u lo resta el ${fechaCorta(x.f)} (${eur(x.imp)}). No cambia lo que te queda`)));
-        o.push(op(f, 'gastos', '🧾 Gastos que no apunté', 'Se resta de lo que te queda'));
+        if (nCobro >= 2 && -f.d >= 10) o.push(op(f, 'cobro', '📅 Repartirlo hasta que cobres',
+          `Unos ${eur(-f.d / nCobro)} cada semana durante ${nCobro} semanas, hasta el cobro del ${fechaCorta(cicloSiguiente(inicioCiclo(h)))}`));
+        o.push(op(f, 'gastos', '🧾 Gastos que no apunté', 'Todo se resta de ' + (mes ? 'este mes' : 'esta semana')));
         o.push(op(f, 'mal', '✏️ Pre$u lo tenía mal', 'Algo apuntado dos veces o un error. Solo se corrige la cuenta: no cambia lo que te queda'));
         if (grande(f)) o.push(op(f, 'repartir', '📅 Repartirlo en varias ' + (mes ? 'meses' : 'semanas').replace('varias meses', 'varios meses'),
           `Unos ${eur(-f.d / f.n)} ${mes ? 'cada mes' : 'cada semana'} durante ${f.n} ${mes ? 'meses' : 'semanas'}`)
@@ -4161,6 +4174,10 @@ function hojaCuadrar(opts) {
           resto(f, tipo === 'cob' ? f.d + imp : f.d - imp, i);
         }
         reset(f, i); return;
+      }
+      if (tipo === 'cobro') {   // repartido entre las semanas que quedan hasta el cobro (esta incluida)
+        mov({ id: nuevoId(), tipo: 'gasto', importe: r2(-f.d), desc: 'Descuadre (repartido hasta el cobro)', cat: 'Descuadre', cuenta: f.k.id, fecha: h, ts: ahora + i, origen: 'cuadre', repartirHasta: hastaDeN(h, Math.max(2, nCobro), X.periodo) });
+        return;
       }
       if (tipo === 'repartir') {
         mov({ id: nuevoId(), tipo: 'gasto', importe: r2(-f.d), desc: 'Descuadre (repartido)', cat: 'Descuadre', cuenta: f.k.id, fecha: h, ts: ahora + i, origen: 'cuadre', repartirHasta: hastaDeN(h, f.n, X.periodo) });
