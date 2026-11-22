@@ -383,6 +383,12 @@ input[type=date].texto{min-height:52px}
 .cat-lista .nom small{display:block;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis}
 .cat-lista .pct{color:var(--sub);font-size:13px;font-weight:500}
 .cat-lista b{font-weight:650}
+/* 22/11: gastos de la categoría tocada en la rueda */
+.cat-det{margin-top:14px}
+.cat-det:empty{display:none}
+.cat-det .tit-det{font-size:13px;font-weight:650;color:var(--sub);text-transform:uppercase;letter-spacing:.3px;margin:0 0 4px}
+.cat-det .res-fila .txt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-det .mas-det{margin-top:10px}
 .cat-fila .arriba-cat{display:flex;align-items:center;gap:10px;font-size:15.5px}
 .cat-fila .arriba-cat span{flex:1;min-width:0}
 .cat-fila .arriba-cat small{color:var(--sub);font-size:13px;font-weight:500;margin-right:4px}
@@ -3737,6 +3743,14 @@ function vistaResumen() {
     : `Donde más se te va el dinero: <b>${emojiCat(cats[0][0])} ${esc(cats[0][0])} (${pctDe(cats[0][1])} %)</b>. Después: <b>${emojiCat(cats[1][0])} ${esc(cats[1][0])} (${pctDe(cats[1][1])} %)</b>.`;
   const centro = () => { const g = resSel !== null ? grupos[resSel] : null;
     return g ? `<span class="dc-e">${g.emoji}</span><b>${eur(g.v)}</b><span>${esc(g.nombre)} · ${pctDe(g.v)} %</span>` : `<b>${eur(totalCat)}</b><span>gastado</span>`; };
+  // 22/11: al tocar una categoría, debajo salen sus gastos (del más nuevo al más viejo)
+  let detTodos = false;
+  const detalle = () => { const g = resSel !== null ? grupos[resSel] : null; if (!g) return '';
+    const ks = g.k === '__otros' ? cats.filter(([k]) => k === 'Otros' || peques.some(x => x[0] === k)).map(x => x[0]) : [g.k];
+    const lista = gastos.filter(m => ks.includes(m.cat || 'Otros')).sort((x, y) => x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : (y.ts || 0) - (x.ts || 0));
+    const MAX = 15, vis = detTodos ? lista : lista.slice(0, MAX);
+    return `<div class="tit-det">Gastos en ${esc(g.nombre)} · ${lista.length}</div>` + vis.map(m => `<div class="res-fila"><div class="ico">${emojiCat(m.cat || 'Otros')}</div><div class="txt"><b>${esc(m.desc || m.cat || 'Gasto')}</b><span>${fechaCorta(m.fecha)}${ks.length > 1 ? ' · ' + esc(m.cat || 'Otros') : ''}</span></div><div class="cant">${eur(m.importe)}</div></div>`).join('')
+      + (lista.length > vis.length ? `<button class="boton contorno mas-det" id="rcMasDet">Ver todos (${lista.length})</button>` : ''); };
   const vacioTxt = rc.actual ? 'Aún no has apuntado gastos ' + (mes ? 'este mes.' : 'esta semana.') : resCat.modo === 'periodo' ? 'No apuntaste gastos ' + (mes ? 'ese mes.' : 'esa semana.') : 'Aún no has apuntado gastos.';
   const fila = ([ico, tit, sub, cant, id]) => `<div class="res-fila${id ? ' toca' : ''}"${id ? ` id="${id}"` : ''}><div class="ico">${ico}</div><div class="txt"><b>${tit}</b><span>${sub}</span></div><div class="cant">${cant}</div></div>`;
 
@@ -3776,7 +3790,8 @@ function vistaResumen() {
           <div class="donut-caja">${svgDonut(grupos, totalCat)}<div class="donut-centro" id="rcCentro">${centro()}</div></div>
           <ol class="cat-lista" id="rcLista">${grupos.map((g, i) => `<li data-i="${i}" class="${resSel === i ? 'on' : ''}"><span class="num">${i + 1}</span><i style="background:${g.color}"></i>
             <span class="nom">${g.emoji} ${esc(g.nombre)}${g.sub ? `<small>${esc(g.sub)}</small>` : ''}</span><small class="pct">${pctDe(g.v)} %</small><b>${eur(g.v)}</b></li>`).join('')}</ol>
-          <div class="res-total"><span>Total</span><span>${eur(totalCat)}</span></div>`
+          <div class="res-total"><span>Total</span><span>${eur(totalCat)}</span></div>
+          <div class="cat-det" id="rcDetalle">${detalle()}</div>`
           : `<div class="vacio">${vacioTxt}</div>`}
       </div>`,
     montar() {
@@ -3798,7 +3813,10 @@ function vistaResumen() {
         document.querySelectorAll('#rCatTarj .trozo').forEach(t => t.classList.toggle('on', +t.dataset.i === resSel));
         document.querySelectorAll('#rcLista li').forEach(li => li.classList.toggle('on', +li.dataset.i === resSel));
         if ($('rcCentro')) $('rcCentro').innerHTML = centro();
+        detTodos = false; pintarDet();
       };
+      const pintarDet = () => { if (!$('rcDetalle')) return; $('rcDetalle').innerHTML = detalle();
+        if ($('rcMasDet')) $('rcMasDet').onclick = () => { detTodos = true; pintarDet(); }; };
       document.querySelectorAll('#rCatTarj .trozo').forEach(t => t.onclick = () => marcar(+t.dataset.i));
       document.querySelectorAll('#rcLista li').forEach(li => li.onclick = () => marcar(+li.dataset.i));
       if ($('rcCentro')) $('rcCentro').onclick = () => { if (resSel !== null) marcar(resSel); };
